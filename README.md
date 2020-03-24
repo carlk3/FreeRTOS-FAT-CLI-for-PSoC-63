@@ -5,7 +5,7 @@ Prerequisites:
 * PSoC® 6 BLE Pioneer Kit (CY8CKIT-062-BLE)
 * PSoC Creator 4.3
 * SD Card hardware
-* FreeRTOS-Plus-FAT-191108a-MIT source files
+* FreeRTOS-Plus-FAT-191108a-MIT source files (https://www.freertos.org/FreeRTOS-Labs/downloads/FreeRTOS-Plus-FAT-160919a-MIT.zip)
 
 See:
 * FreeRTOS+FAT DOS Compatible Embedded FAT File System (https://www.freertos.org/FreeRTOS-Plus/FreeRTOS_Plus_FAT/index.html)
