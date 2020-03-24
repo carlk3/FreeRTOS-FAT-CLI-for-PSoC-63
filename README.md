@@ -5,14 +5,16 @@ Prerequisites:
 * PSoC® 6 BLE Pioneer Kit (CY8CKIT-062-BLE)
 * PSoC Creator 4.3 
 * SD Card hardware
-* FreeRTOS-Plus-FAT-191108a-MIT source files (https://www.freertos.org/FreeRTOS-Labs/downloads/FreeRTOS-Plus-FAT-160919a-MIT.zip)
+* FreeRTOS-Plus-FAT-191108a-MIT source files 
+  * (https://www.freertos.org/FreeRTOS-Labs/downloads/FreeRTOS-Plus-FAT-160919a-MIT.zip)
+  * or get the latest at FreeRTOS/Lab-Project-FreeRTOS-FAT (https://github.com/FreeRTOS/Lab-Project-FreeRTOS-FAT)
 
 Getting Started; Hardware
 * Decide how to physically attach your SD Card(s). I used the AdaFruit AdaLogger Shield. Later I added a second card in the breadboard area using a SparkFun microSD Transflash Breakout (https://www.sparkfun.com/products/544).
 * Figure out pin assignments. The AdaLogger hardware can be configured in various ways. Check for pin conflicts if you want to stack the AdaLogger and the E-ink display shield board. You will probably need to run a jumper wire for the Card Detect switch.
 * In PSoC Creator, customize to match hardware:
- * Schematic in TopDesign.cysch 
- * Design Wide Resources/Pins in FreeRTOS+FAT+CLI.cydwr 
+  * Schematic in TopDesign.cysch 
+  * Design Wide Resources/Pins in FreeRTOS+FAT+CLI.cydwr 
  
 Getting Started; Software
 * Tailor ff_sddisk_config.h to match hardware
