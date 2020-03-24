@@ -9,7 +9,7 @@
 
 #include <stdio.h>  // printf
 #include <stdarg.h> // varargs
-
+ 
 // Make it easier to spot errors:
 #include "project.h" 
 #include "FreeRTOS.h"
@@ -47,7 +47,6 @@ typedef struct {
 	const cy_stc_sysint_t * const intcfg;
 	const cy_israddress userIsr;
 	const cy_cb_scb_spi_handle_events_t callback;
-	const cy_en_scb_spi_slave_select_t ss;
 	bool initialized;   // Assigned dynamically        
 	TaskHandle_t owner; // Assigned dynamically      
 	SemaphoreHandle_t mutex; // Assigned dynamically      
@@ -84,7 +83,7 @@ static spi_t spi[] = { // One for each SPI.
 			&SPI_1_SCB_IRQ_cfg, // Interrupt
 			&SPI_1_Interrupt, // Interrupt
 			SPI_1_handle_event, // Interrupt callback
-			SPI_1_SPI_SLAVE_SELECT0, 0, //initialized flag
+            0, //initialized flag
 			0, // Owning task, assigned dynamically
 			0  // Guard semaphore, assigned dynamically
 		}
@@ -98,7 +97,7 @@ static sd_t sd_cards[] = { 	// One for each SD card
     		SPI_1_SPI_SLAVE_SELECT0, // The SPI slave select line for this SD card
 			Card_Detect_PORT, // Card detect
 			Card_Detect_NUM, // Card detect
-			1, // truth is 1
+			0, // truth (card is present) is 0 
 			0, 0, 0, 0, 0, 0
 	}	
 };
