@@ -88,8 +88,8 @@
 
 /* The number of tasks to create if the stdio tests will be executed in
 multiple tasks simultaneously. */
-//#define fsTASKS_TO_CREATE 5
-#define fsTASKS_TO_CREATE 2
+#define fsTASKS_TO_CREATE 5
+//#define fsTASKS_TO_CREATE 2
 
 /*
  * Examples and basic tests of the ff_truncate() function.
@@ -153,19 +153,19 @@ void vStdioWithCWDTest( const char *pcMountPath )
 	/* Must come after the prvCreateDemoFilesUsing_fwrite() and
 	prvCreateDemoFileUsing_fputc() functions as it expects the files created by
 	those functions to exist. */
-    //vTaskDelay(rand() % 2000);            
+    vTaskDelay(rand() % 5);            
 	prvTest_ff_findfirst_ff_findnext_ff_findclose( pcMountPath );
-    //vTaskDelay(rand() % 2000);        
+    vTaskDelay(rand() % 5);        
 	prvTest_ff_truncate( pcMountPath );
-    //vTaskDelay(rand() % 2000);        
+    vTaskDelay(rand() % 5);        
 	prvTest_ff_fmkdir_ff_chdir_ff_rmdir( pcMountPath );
-    //vTaskDelay(rand() % 2000);        
+    vTaskDelay(rand() % 5);        
 	prvTest_ff_fopen( pcMountPath );
-    //vTaskDelay(rand() % 2000);        
+    vTaskDelay(rand() % 5);        
 	prvTest_ff_rename( pcMountPath );
-    //vTaskDelay(rand() % 2000);        
+    vTaskDelay(rand() % 5);        
 	prvAlignmentReadWriteTests( pcMountPath );
-    //vTaskDelay(rand() % 2000);        
+    vTaskDelay(rand() % 5);        
 	prvTest_ff_fseek_ff_rewind( pcMountPath );
 
 	#if( ffconfigFPRINTF_SUPPORT == 1 )
@@ -1216,8 +1216,6 @@ const char * const pcBasePath = ( char * ) pvParameters;
         
         if (die_now)
             vTaskDelete(NULL);
-        
-//        vTaskDelay(1000);
-	}
+       	}
 }
 /*-----------------------------------------------------------*/

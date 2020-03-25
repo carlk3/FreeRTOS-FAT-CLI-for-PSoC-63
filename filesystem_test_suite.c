@@ -217,11 +217,11 @@ static BaseType_t runMount(char *pcWriteBuffer,
 	BaseType_t xParameterStringLength;
 
 	/* Obtain the parameter string. */
-	pcParameter = FreeRTOS_CLIGetParameter(pcCommandString, /* The command string itself. */
+	pcParameter = FreeRTOS_CLIGetParameter(
+        pcCommandString, /* The command string itself. */
 	    1, /* Return the first parameter. */
 	    &xParameterStringLength /* Store the parameter string length. */
 	);
-
 	/* Sanity check something was returned. */
 	configASSERT(pcParameter);
 
@@ -236,7 +236,7 @@ static BaseType_t runMount(char *pcWriteBuffer,
 static const CLI_Command_Definition_t xMount = { 
 		"mount", /* The command string to type. */
 		"\nmount <device name>:\n Mount <devide name> at /<device name>\n"
-		"\te.g.: \"mount UserSDCrd\"\n", 
+		"\te.g.: \"mount SDCard\"\n", 
         runMount, /* The function to run. */
 		1 /* One parameter is expected. */
 };
@@ -264,7 +264,7 @@ static BaseType_t runLLIOTCommand(char *pcWriteBuffer, size_t xWriteBufferLen,
 static const CLI_Command_Definition_t xLowLevIOTests = {
 		"lliot", /* The command string to type. */
 		"\nlliot <device name>:\n !DESTRUCTIVE! Low Level I/O Driver Test\n"
-		"\te.g.: \"lliot SysSDCrd0\"\n", 
+		"\te.g.: \"lliot SDCard\"\n", 
         runLLIOTCommand, /* The function to run. */
 		1 /* One parameter is expected. */
 };
@@ -279,55 +279,72 @@ static BaseType_t runCreateDiskAndExampleFiles(char *pcWriteBuffer,
 	BaseType_t xParameterStringLength;
 
 	/* Obtain the parameter string. */
-	pcParameter = FreeRTOS_CLIGetParameter(pcCommandString, /* The command string itself. */
-	1, /* Return the first parameter. */
-	&xParameterStringLength /* Store the parameter string length. */
+	pcParameter = FreeRTOS_CLIGetParameter(
+        pcCommandString, /* The command string itself. */
+    	1, /* Return the first parameter. */
+    	&xParameterStringLength /* Store the parameter string length. */
 	);
-
 	/* Sanity check something was returned. */
 	configASSERT(pcParameter);
-
 	char buf[cmdMAX_INPUT_SIZE];
 	snprintf(buf, cmdMAX_INPUT_SIZE, "/%s", pcParameter); // Add '/' for path
 	FF_Disk_t *pxDisk;
 	FF_Error_t xError = FF_SDDiskMount(&pxDisk, pcParameter, buf);
 	configASSERT(FF_isERR( xError ) == pdFALSE);
 
-	// prvCreateDiskAndExampleFiles();    
-	vCreateAndVerifyExampleFiles(pcParameter);
+	vCreateAndVerifyExampleFiles(buf);
 
-	FF_SDDiskUnmount(pxDisk, pcParameter);
+	FF_SDDiskUnmount(pxDisk, buf);
 	return pdFALSE;
 }
 static const CLI_Command_Definition_t xExampFiles = { 
 		"cdef", /* The command string to type. */
 		"\ncdef <device name>:\n Create Disk and Example Files\n"
-		"Expects card to already be formatted but not mounted.\n"
-		"\te.g.: \"cdef UserSDCrd\"\n", 
+		"Expects card to be already formatted but not mounted.\n"
+		"\te.g.: \"cdef SDCard\"\n", 
         runCreateDiskAndExampleFiles, /* The function to run. */
 		1 /* One parameter is expected. */
 };
 /*-----------------------------------------------------------*/
 static BaseType_t runStdioWithCWDTest(char *pcWriteBuffer,
 		size_t xWriteBufferLen, const char *pcCommandString) {
-	(void) pcCommandString;
 	(void) pcWriteBuffer;
 	(void) xWriteBufferLen;
+	const char *pcParameter;
+	BaseType_t xParameterStringLength;    
 
+	/* Obtain the parameter string. */
+	pcParameter = FreeRTOS_CLIGetParameter(
+        pcCommandString, /* The command string itself. */
+    	1, /* Return the first parameter. */
+    	&xParameterStringLength /* Store the parameter string length. */
+	);
+	/* Sanity check something was returned. */
+	configASSERT(pcParameter);
+	char buf[cmdMAX_INPUT_SIZE];
+	snprintf(buf, cmdMAX_INPUT_SIZE, "/%s", pcParameter); // Add '/' for path
 	FF_Disk_t *pxDisk;
-	FF_Error_t xError = FF_SDDiskMount(&pxDisk, "UserSDCrd", "/UserSDCrd");
+	FF_Error_t xError = FF_SDDiskMount(&pxDisk, pcParameter, buf);
 	configASSERT(FF_isERR( xError ) == pdFALSE);
 
-	vStdioWithCWDTest("/UserSDCrd");
+    // Clear out leftovers from earlier runs
+    ff_chdir(buf);
+    ff_remove("Dummy.txt");
+	ff_deltree("source_dir");
+	ff_deltree("destination_dir");
+    
+	vStdioWithCWDTest(buf);
 
-	FF_SDDiskUnmount(pxDisk, "/UserSDCrd");
+	FF_SDDiskUnmount(pxDisk, buf);
 	return pdFALSE;
 }
 static const CLI_Command_Definition_t xStdioWithCWDTest = { 
 		"swcwdt", /* The command string to type. */
-		"\nswcwdt:\n Stdio With CWD Test\n", 
+		"\nswcwdt <device name>:\n Stdio With CWD Test\n"
+		"Expects card to be already formatted but not mounted.\n"
+        "\te.g.: \"swcwdt SDCard\"\n", 
         runStdioWithCWDTest, /* The function to run. */
-		0 /* No parameters are expected. */
+		1 /* No parameters are expected. */
 };
 /*-----------------------------------------------------------*/
 static BaseType_t runMultiTaskStdioWithCWDTest(char *pcWriteBuffer,
@@ -339,35 +356,27 @@ static BaseType_t runMultiTaskStdioWithCWDTest(char *pcWriteBuffer,
 	FF_Disk_t *pxDisk;
 	FF_Error_t xError;
 
-	xError = FF_SDDiskMount(&pxDisk, "SysSDCrd0", "/SysSDCrd0");
-	configASSERT(FF_isERR( xError ) == pdFALSE);
-	xError = FF_SDDiskMount(&pxDisk, "UserSDCrd", "/UserSDCrd");
+	xError = FF_SDDiskMount(&pxDisk, "SDCard", "/SDCard");
 	configASSERT(FF_isERR( xError ) == pdFALSE);
 
-	ff_deltree("/UserSDCrd/0");
-	ff_deltree("/UserSDCrd/1");
-	ff_deltree("/UserSDCrd/2");
-	ff_deltree("/UserSDCrd/3");
-	ff_deltree("/UserSDCrd/4");
-
-	ff_deltree("/SysSDCrd0/0");
-	ff_deltree("/SysSDCrd0/1");
-	ff_deltree("/SysSDCrd0/2");
-	ff_deltree("/SysSDCrd0/3");
-	ff_deltree("/SysSDCrd0/4");
+	ff_deltree("/SDCard/0");
+	ff_deltree("/SDCard/1");
+	ff_deltree("/SDCard/2");
+	ff_deltree("/SDCard/3");
+	ff_deltree("/SDCard/4");
 
 	// Don't launch the new tasks until the above have completed.
-	vMultiTaskStdioWithCWDTest("/SysSDCrd0", 1024);
-	vMultiTaskStdioWithCWDTest("/UserSDCrd", 1024);
+	vMultiTaskStdioWithCWDTest("/SDCard", 1024);
 
-//    unmount(pxDisk);   Can't unmount, the tasks keep running
 	return pdFALSE;
 }
 static const CLI_Command_Definition_t xMultiTaskStdioWithCWDTest = {
 		"mtswcwdt", /* The command string to type. */
-		"\nmtswcwdt:\n MultiTask Stdio With CWD Test\n", 
+		"\nmtswcwdt <device name>:\n MultiTask Stdio With CWD Test\n"
+		"Expects card to be already formatted but not mounted.\n"
+        "\te.g.: \"mtswcwdt SDCard\"\n", 
         runMultiTaskStdioWithCWDTest, /* The function to run. */
-		0 /* No parameters are expected. */
+		1 /* parameters are expected. */
 };
 /*-----------------------------------------------------------*/
 static BaseType_t runSimpleFSTest(char *pcWriteBuffer,
@@ -392,14 +401,14 @@ static BaseType_t runSimpleFSTest(char *pcWriteBuffer,
 
 	prvSimpleTest();    
 
-	FF_SDDiskUnmount(pxDisk, pcParameter);
+	FF_SDDiskUnmount(pxDisk, "/fs");
 	return pdFALSE;
 }
 static const CLI_Command_Definition_t xSimpleFSTest = { 
 		"simple", /* The command string to type. */
 		"\nsimple <device name>:\n Run simple FS tests\n"
 		"Expects card to already be formatted but not mounted.\n"
-		"\te.g.: \"simple UserSDCrd\"\n", 
+		"\te.g.: \"simple SDCard\"\n", 
         runSimpleFSTest, /* The function to run. */
 		1 /* One parameter is expected. */
 };
@@ -471,10 +480,10 @@ void register_fs_tests() {
 	/* Register all the command line commands defined immediately above. */
 	FreeRTOS_CLIRegisterCommand(&xMount);    
 	FreeRTOS_CLIRegisterCommand(&xLowLevIOTests);
+	FreeRTOS_CLIRegisterCommand(&xSimpleFSTest);        
 	FreeRTOS_CLIRegisterCommand(&xExampFiles);
 	FreeRTOS_CLIRegisterCommand(&xStdioWithCWDTest);
 	FreeRTOS_CLIRegisterCommand(&xMultiTaskStdioWithCWDTest);
-	FreeRTOS_CLIRegisterCommand(&xSimpleFSTest);    
 	FreeRTOS_CLIRegisterCommand(&xBFT);        
 }
 

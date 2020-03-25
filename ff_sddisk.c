@@ -172,7 +172,7 @@
  * | 0xFE | data[0] | data[1] |        | data[n] | crc[15:8] | crc[7:0] |
  * +------+---------+---------+- -  - -+---------+-----------+----------+
  */
- 
+
 /* Standard includes. */
 #include <inttypes.h>
 #include <sys/param.h>
@@ -427,9 +427,9 @@ static bool sd_spi_transfer(sd_t *this, const uint8_t *tx, uint8_t *rx, size_t l
 		// but the specified block time expired before that happened.
 		DBG_PRINTF("Task %s timed out\n",
 				pcTaskGetName(xTaskGetCurrentTaskHandle()));
-        Cy_SCB_SPI_AbortTransfer(this->spi->base, this->spi->context);
-        Cy_SCB_SPI_ClearRxFifo(this->spi->base);
-        return false;
+		Cy_SCB_SPI_AbortTransfer(this->spi->base, this->spi->context);
+		Cy_SCB_SPI_ClearRxFifo(this->spi->base);
+		return false;
 	}
 	while (CY_SCB_SPI_TRANSFER_ACTIVE
 			& Cy_SCB_SPI_GetTransferStatus(this->spi->base, this->spi->context))
@@ -788,8 +788,8 @@ BaseType_t FF_SDDiskDetect(FF_Disk_t *pxDisk) {
 #define SPI_FILL_CHAR         (0xFF)
 
 static bool spi_init(spi_t *this) {
-    cy_en_scb_spi_status_t initStatus;
-    cy_en_sysint_status_t sysSpistatus;   
+	cy_en_scb_spi_status_t initStatus;
+	cy_en_sysint_status_t sysSpistatus;   
 
 	// bool __atomic_test_and_set (void *ptr, int memorder)
 	// This built-in function performs an atomic test-and-set operation on the byte at *ptr. 
@@ -824,7 +824,7 @@ static bool spi_init(spi_t *this) {
 	// SD cards' DO MUST be pulled up.
 	Cy_GPIO_SetDrivemode(this->spi_miso_port, this->spi_miso_num, CY_GPIO_DM_PULLUP);
 
-    // Do this here if not done in sd_spi_acquire:
+	// Do this here if not done in sd_spi_acquire:
 //	Cy_SCB_SPI_SetActiveSlaveSelect(this->base, this->ss);
 
 	/* Enable SPI master hardware. */
@@ -1034,7 +1034,7 @@ static uint64_t sd_sectors(sd_t *this) {
 
 	default:
 		DBG_PRINTF("CSD struct unsupported\n");
-        configASSERT(!"CSD struct unsupported\n");
+		configASSERT(!"CSD struct unsupported\n");
 		return 0;
 	};
 	return blocks;
@@ -1101,7 +1101,7 @@ static int sd_driver_init(FF_Disk_t *pxDisk) {
 	DBG_PRINTF("SD card initialized\n");
 	this->sectors = sd_sectors(this);
 	if (0 == this->sectors) {
-        // CMD9 failed
+		// CMD9 failed
 		sd_unlock(this);
 		return this->m_Status;
 	}
@@ -1214,9 +1214,9 @@ sd_read_blocks(sd_t *this, uint8_t *buffer, uint64_t ulSectorNumber, uint32_t ul
 	if (ulSectorNumber + blockCnt > this->sectors) {
 		return SD_BLOCK_DEVICE_ERROR_PARAMETER;
 	}
-    if (!this->initialized) {
-        return SD_BLOCK_DEVICE_ERROR_PARAMETER;
-    }
+	if (!this->initialized) {
+		return SD_BLOCK_DEVICE_ERROR_PARAMETER;
+	}
 	if (this->m_Status & STA_NOINIT)
 		return SD_BLOCK_DEVICE_ERROR_PARAMETER;
 
@@ -1258,9 +1258,9 @@ sd_read_blocks(sd_t *this, uint8_t *buffer, uint64_t ulSectorNumber, uint32_t ul
 }
 
 int32_t prvFFRead(uint8_t *pucDestination, /* Destination for data being read. */
-        uint32_t ulSectorNumber, /* Sector from which to start reading data. */
-        uint32_t ulSectorCount, /* Number of sectors to read. */
-        FF_Disk_t *pxDisk) /* Describes the disk being read from. */
+		uint32_t ulSectorNumber, /* Sector from which to start reading data. */
+		uint32_t ulSectorCount, /* Number of sectors to read. */
+		FF_Disk_t *pxDisk) /* Describes the disk being read from. */
 {
 	sd_t *this = (sd_t *) pxDisk->pvTag;
 	sd_lock(this);
@@ -1316,12 +1316,12 @@ static uint8_t sd_write_block(sd_t *this, const uint8_t *buffer, uint8_t token, 
 }
 
 static int sd_reserve(sd_t *this, uint32_t blockCnt) {
-    return sd_cmd(this, ACMD23_SET_WR_BLK_ERASE_COUNT, blockCnt, 1, 0);
+	return sd_cmd(this, ACMD23_SET_WR_BLK_ERASE_COUNT, blockCnt, 1, 0);
 }
 int FFReserve(FF_FILE *pxFile, uint32_t blockCnt) {
-    configASSERT(pxFile->pxIOManager->xBlkDevice.pxDisk->pvTag);
+	configASSERT(pxFile->pxIOManager->xBlkDevice.pxDisk->pvTag);
 	sd_t *this = (sd_t *) pxFile->pxIOManager->xBlkDevice.pxDisk->pvTag;   
-    return sd_reserve(this, blockCnt);
+	return sd_reserve(this, blockCnt);
 }
 
 /** Program blocks to a block device
@@ -1344,9 +1344,9 @@ sd_write_blocks(sd_t *this, const uint8_t *buffer, uint64_t ulSectorNumber, uint
 	if (ulSectorNumber + blockCnt > this->sectors) {
 		return SD_BLOCK_DEVICE_ERROR_PARAMETER;
 	}
-    if (!this->initialized) {
-        return SD_BLOCK_DEVICE_ERROR_NO_INIT;
-    }
+	if (!this->initialized) {
+		return SD_BLOCK_DEVICE_ERROR_NO_INIT;
+	}
 	if (this->m_Status & STA_NOINIT)
 		return SD_BLOCK_DEVICE_ERROR_PARAMETER;
 
@@ -1406,13 +1406,13 @@ sd_write_blocks(sd_t *this, const uint8_t *buffer, uint64_t ulSectorNumber, uint
 }
 
 int32_t FFWrite(uint8_t *pucSource, /* Source of data to be written. */
-        uint32_t ulSectorNumber, /* The first sector being written to. */
-        uint32_t ulSectorCount, /* The number of sectors to write. */
-        FF_Disk_t *pxDisk) /* Describes the disk being written to. */
+		uint32_t ulSectorNumber, /* The first sector being written to. */
+		uint32_t ulSectorCount, /* The number of sectors to write. */
+		FF_Disk_t *pxDisk) /* Describes the disk being written to. */
 {
 	sd_t *this = (sd_t *) pxDisk->pvTag;
 
-    sd_lock(this);
+	sd_lock(this);
 	int status = sd_write_blocks((sd_t *) pxDisk->pvTag, pucSource,
 			ulSectorNumber, ulSectorCount);
 	sd_unlock(this);
@@ -1513,7 +1513,7 @@ FF_Disk_t *FF_SDDiskInit(const char *pcName) {
 		} else {
 			/* The disk structure was allocated, but the disk’s IO manager could
 			 not be allocated, so free the disk again. */
-            FF_SDDiskDelete( pxDisk );
+			FF_SDDiskDelete( pxDisk );
 			pxDisk = NULL;
 			DBG_PRINTF("FF_RAMDiskInit: FF_CreateIOManger: %s\n",
 					(const char *) FF_GetErrMessage(xError));
@@ -1583,7 +1583,7 @@ FF_SDDiskMount(FF_Disk_t **ppxDisk, const char *pcDevName, const char *pcPath) {
 	FF_PRINTF("FF_FS_Add: %s\n", (const char *) FF_GetErrMessage(xError));
 	configASSERT(iReturn);
 
-    //FIXME
+	//FIXME
 	/* Block to wait for event bits to become set within the event group. */
 //      EventBits_t xEventGroupWaitBits(
 //                       const EventGroupHandle_t xEventGroup,

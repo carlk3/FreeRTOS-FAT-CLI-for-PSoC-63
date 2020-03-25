@@ -285,13 +285,12 @@ static const CLI_Command_Definition_t xDate = {
 };
 /*-----------------------------------------------------------*/
 
-
 static void vRegisterMyCLICommands(void) {
 	/* Register all the command line commands defined immediately above. */
+	FreeRTOS_CLIRegisterCommand(&xSetRTC);
+	FreeRTOS_CLIRegisterCommand(&xDate);        
 	FreeRTOS_CLIRegisterCommand(&xDie);
 	FreeRTOS_CLIRegisterCommand(&xUnDie);
-	FreeRTOS_CLIRegisterCommand(&xSetRTC);
-	FreeRTOS_CLIRegisterCommand(&xDate);    
 }
 
 /* Start UART operation. */
@@ -299,7 +298,7 @@ void CLI_Start() {
 	BaseType_t rc = pdPASS;
 	cy_en_scb_uart_status_t init_status = 0;
 
-	vRegisterCLICommands();
+//	vRegisterCLICommands();
 	vRegisterFileSystemCLICommands();
 	vRegisterMyCLICommands();
 
