@@ -1,6 +1,11 @@
 # FreeRTOS-FAT-CLI-for-PSoC-63
 FreeRTOS+FAT Media Driver (ff_sddisk.c) for PSoC 6 using SPI, based on SDBlockDevice from Mbed OS 5. This example PSoC Creator project implements a FAT filesystem on SD card in an AdaLogger Shield on a PSoC® 6 BLE Pioneer Kit (CY8CKIT-062-BLE).
 
+Features:
+* Supports multiple SD Cards
+* Supports multiple SPIs
+* Supports multiple SD Cards per SPI
+
 Prerequisites:
 * PSoC® 6 BLE Pioneer Kit (CY8CKIT-062-BLE)
 * PSoC Creator 4.3 
