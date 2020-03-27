@@ -22,7 +22,21 @@ Getting Started; Hardware
   * Design Wide Resources/Pins in FreeRTOS+FAT+CLI.cydwr 
  
 Getting Started; Software
+* Install source code (outline):
+  * md Lab-Project-FreeRTOS-FAT
+  * cd Lab-Project-FreeRTOS-FAT
+  * git init
+  * git remote add origin https://github.com/FreeRTOS/Lab-Project-FreeRTOS-FAT
+  * git pull origin master
+  * cd ..
+  * md FreeRTOS+FAT+CLI.cydsn
+  * cd FreeRTOS+FAT+CLI.cydsn
+  * git init
+  * git remote add origin https://github.com/carlk3/FreeRTOS-FAT-CLI-for-PSoC-63.git
+  * git pull origin master
+* Open FreeRTOS+FAT+CLI.cyprj with PSoC Creator
 * Tailor ff_sddisk_config.h to match hardware
+* Program the device
 
 Getting Started; Running
 * Connect a terminal such as PuTTY at 115200 baud, 8 data, 1 stop, no parity. You can find the COM port in Windows Device Manager.
