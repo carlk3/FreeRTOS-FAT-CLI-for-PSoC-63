@@ -11,7 +11,7 @@
 //#include "ff.h"         /* Declarations of sector size */
 //#include "diskio.h"     /* Declarations of disk functions */
 
-#include "ff_sddisk.h"
+#include "sd_card.h"
 
 typedef uint32_t DWORD;
 typedef unsigned int UINT;
@@ -39,6 +39,9 @@ enum {
 
 #define FF_MIN_SS		512
 #define FF_MAX_SS		512
+
+#define disk_read sd_read_blocks
+#define disk_write sd_write_blocks
 
 static DWORD pn (       /* Pseudo random number generator */
     DWORD pns   /* 0:Initialize, !0:Read */
@@ -68,17 +71,16 @@ int test_diskio (
     UINT sz_buff    /* Size of the working buffer in unit of byte */
 )
 {
-    BYTE pdrv = 0;  /* Physical drive number to be checked (all data on the drive will be lost) */    
+//    BYTE pdrv = 0;  /* Physical drive number to be checked (all data on the drive will be lost) */   
+    sd_t *pdrv = 0;
     UINT n, cc, ns;
     DWORD sz_drv, lba, lba2, sz_eblk, pns = 1;
     WORD sz_sect;
     BYTE *pbuff = (BYTE*)buff;
-    DSTATUS ds;
+//    DSTATUS ds;
     DRESULT dr;
 
-	FF_Disk_t *pxDisk;
-
-    printf("test_diskio(%u, %u, 0x%08X, 0x%08X)\n", pdrv, ncyc, (UINT)buff, sz_buff);
+    printf("test_diskio(%p, %u, 0x%08X, 0x%08X)\n", pdrv, ncyc, (UINT)buff, sz_buff);
 
     if (sz_buff < FF_MAX_SS + 8) {
         printf("Insufficient work area to run the program.\n");
@@ -88,12 +90,17 @@ int test_diskio (
     for (cc = 1; cc <= ncyc; cc++) {
         printf("**** Test cycle %u of %u start ****\n", cc, ncyc);
 
-        printf(" disk_initalize(%u)", pdrv);
+        printf(" disk_initalize(%p)", pdrv);
 //        ds = disk_initialize(pdrv);
-        pxDisk = FF_SDDiskInit(diskName);
-        ds = pxDisk ? 0 : STA_NOINIT;
-        
-        if (ds & STA_NOINIT) {
+
+        pdrv = sd_get_by_name(diskName);
+        if (!pdrv) {
+            printf("sd_get_by_name: unknown name %s\n", diskName);
+			return -1;            
+        }
+		// Initialize the media driver
+		if (0 != sd_driver_init(pdrv)) {
+			// Couldn't init
             printf(" - failed.\n");
             return 2;
         } else {
@@ -101,12 +108,11 @@ int test_diskio (
         }
 
         printf("**** Get drive size ****\n");
-        printf(" disk_ioctl(%u, GET_SECTOR_COUNT, 0x%08X)", pdrv, (UINT)&sz_drv);
+        printf(" disk_ioctl(%p, GET_SECTOR_COUNT, 0x%08X)", pdrv, (UINT)&sz_drv);
 //        sz_drv = 0;
 //        dr = disk_ioctl(pdrv, GET_SECTOR_COUNT, &sz_drv);
         dr = RES_OK;
-        sz_drv = FF_SDDiskSectors(pxDisk);
-        
+        sz_drv = sd_sectors(pdrv);
         if (dr == RES_OK) {
             printf(" - ok.\n");
         } else {
@@ -117,7 +123,7 @@ int test_diskio (
             printf("Failed: Insufficient drive size to test.\n");
             return 4;
         }
-        printf(" Number of sectors on the drive %u is %lu.\n", pdrv, (unsigned long)sz_drv);
+        printf(" Number of sectors on the drive %p is %lu.\n", pdrv, (unsigned long)sz_drv);
 
 #if FF_MAX_SS != FF_MIN_SS
         printf("**** Get sector size ****\n");
@@ -136,10 +142,11 @@ int test_diskio (
 #endif
 
         printf("**** Get block size ****\n");
-        printf(" disk_ioctl(%u, GET_BLOCK_SIZE, 0x%X)", pdrv, (UINT)&sz_eblk);
+        printf(" disk_ioctl(%p, GET_BLOCK_SIZE, 0x%X)", pdrv, (UINT)&sz_eblk);
 //        sz_eblk = 0;
 //        dr = disk_ioctl(pdrv, GET_BLOCK_SIZE, &sz_eblk);
-        sz_eblk = get_block_size();
+//        sz_eblk = get_block_size();
+        sz_eblk = 512;
         dr = RES_OK;
         if (dr == RES_OK) {
             printf(" - ok.\n");
@@ -156,10 +163,8 @@ int test_diskio (
         printf("**** Single sector write test ****\n");
         lba = 0;
         for (n = 0, pn(pns); n < sz_sect; n++) pbuff[n] = (BYTE)pn(0);
-        printf(" disk_write(%u, 0x%X, %lu, 1)", pdrv, (UINT)pbuff, (unsigned long)lba);
-//        dr = disk_write(pdrv, pbuff, lba, 1);
-        dr = FFWrite(pbuff, lba, 1, pxDisk);
-        
+        printf(" disk_write(%p, 0x%X, %lu, 1)", pdrv, (UINT)pbuff, (unsigned long)lba);
+        dr = disk_write(pdrv, pbuff, lba, 1);
         if (dr == RES_OK) {
             printf(" - ok.\n");
         } else {
@@ -175,10 +180,8 @@ int test_diskio (
 //            return 7;
 //        }
         memset(pbuff, 0, sz_sect);
-        printf(" disk_read(%u, 0x%X, %lu, 1)", pdrv, (UINT)pbuff, (unsigned long)lba);
-//        dr = disk_read(pdrv, pbuff, lba, 1);
-        dr = prvFFRead(pbuff, lba, 1, pxDisk); 
-
+        printf(" disk_read(%p, 0x%X, %lu, 1)", pdrv, (UINT)pbuff, (unsigned long)lba);
+        dr = disk_read(pdrv, pbuff, lba, 1);
         if (dr == RES_OK) {
             printf(" - ok.\n");
         } else {
@@ -199,10 +202,8 @@ int test_diskio (
         if (ns > 4) ns = 4;
         if (ns > 1) {
             for (n = 0, pn(pns); n < (UINT)(sz_sect * ns); n++) pbuff[n] = (BYTE)pn(0);
-            printf(" disk_write(%u, 0x%X, %lu, %u)", pdrv, (UINT)pbuff, (unsigned long)lba, ns);
-//            dr = disk_write(pdrv, pbuff, lba, ns);
-            dr = FFWrite(pbuff, lba, ns, pxDisk);
-            
+            printf(" disk_write(%p, 0x%X, %lu, %u)", pdrv, (UINT)pbuff, (unsigned long)lba, ns);
+            dr = disk_write(pdrv, pbuff, lba, ns);
             if (dr == RES_OK) {
                 printf(" - ok.\n");
             } else {
@@ -218,10 +219,8 @@ int test_diskio (
 //                return 12;
 //            }
             memset(pbuff, 0, sz_sect * ns);
-            printf(" disk_read(%u, 0x%X, %lu, %u)", pdrv, (UINT)pbuff, (unsigned long)lba, ns);
-//            dr = disk_read(pdrv, pbuff, lba, ns);
-            dr = prvFFRead(pbuff, lba, ns, pxDisk); 
-            
+            printf(" disk_read(%p, 0x%X, %lu, %u)", pdrv, (UINT)pbuff, (unsigned long)lba, ns);
+            dr = disk_read(pdrv, pbuff, lba, ns);           
             if (dr == RES_OK) {
                 printf(" - ok.\n");
             } else {
@@ -243,10 +242,8 @@ int test_diskio (
         printf("**** Single sector write test (unaligned buffer address) ****\n");
         lba = 5;
         for (n = 0, pn(pns); n < sz_sect; n++) pbuff[n+3] = (BYTE)pn(0);
-        printf(" disk_write(%u, 0x%X, %lu, 1)", pdrv, (UINT)(pbuff+3), (unsigned long)lba);
-//        dr = disk_write(pdrv, pbuff+3, lba, 1);
-        dr = FFWrite(pbuff+3, lba, 1, pxDisk);
-        
+        printf(" disk_write(%p, 0x%X, %lu, 1)", pdrv, (UINT)(pbuff+3), (unsigned long)lba);
+        dr = disk_write(pdrv, pbuff+3, lba, 1);       
         if (dr == RES_OK) {
             printf(" - ok.\n");
         } else {
@@ -262,10 +259,8 @@ int test_diskio (
 //            return 16;
 //        }
         memset(pbuff+5, 0, sz_sect);
-        printf(" disk_read(%u, 0x%X, %lu, 1)", pdrv, (UINT)(pbuff+5), (unsigned long)lba);
-//        dr = disk_read(pdrv, pbuff+5, lba, 1);
-        dr = prvFFRead(pbuff+5, lba, 1, pxDisk); 
-        
+        printf(" disk_read(%p, 0x%X, %lu, 1)", pdrv, (UINT)(pbuff+5), (unsigned long)lba);
+        dr = disk_read(pdrv, pbuff+5, lba, 1);
         if (dr == RES_OK) {
             printf(" - ok.\n");
         } else {
@@ -285,20 +280,16 @@ int test_diskio (
         if (sz_drv >= 128 + 0x80000000 / (sz_sect / 2)) {
             lba = 6; lba2 = lba + 0x80000000 / (sz_sect / 2);
             for (n = 0, pn(pns); n < (UINT)(sz_sect * 2); n++) pbuff[n] = (BYTE)pn(0);
-            printf(" disk_write(%u, 0x%X, %lu, 1)", pdrv, (UINT)pbuff, (unsigned long)lba);
-//            dr = disk_write(pdrv, pbuff, lba, 1);
-            dr = FFWrite(pbuff, lba, 1, pxDisk);
-
+            printf(" disk_write(%p, 0x%X, %lu, 1)", pdrv, (UINT)pbuff, (unsigned long)lba);
+            dr = disk_write(pdrv, pbuff, lba, 1);
             if (dr == RES_OK) {
                 printf(" - ok.\n");
             } else {
                 printf(" - failed.\n");
                 return 19;
             }
-            printf(" disk_write(%u, 0x%X, %lu, 1)", pdrv, (UINT)(pbuff+sz_sect), (unsigned long)lba2);
-//            dr = disk_write(pdrv, pbuff+sz_sect, lba2, 1);
-            dr = FFWrite(pbuff+sz_sect, lba2, 1, pxDisk);
-
+            printf(" disk_write(%p, 0x%X, %lu, 1)", pdrv, (UINT)(pbuff+sz_sect), (unsigned long)lba2);
+            dr = disk_write(pdrv, pbuff+sz_sect, lba2, 1);
             if (dr == RES_OK) {
                 printf(" - ok.\n");
             } else {
@@ -314,20 +305,16 @@ int test_diskio (
 //                return 21;
 //            }
             memset(pbuff, 0, sz_sect * 2);
-            printf(" disk_read(%u, 0x%X, %lu, 1)", pdrv, (UINT)pbuff, (unsigned long)lba);
-//            dr = disk_read(pdrv, pbuff, lba, 1);
-            dr = prvFFRead(pbuff, lba, 1, pxDisk); 
-            
+            printf(" disk_read(%p, 0x%X, %lu, 1)", pdrv, (UINT)pbuff, (unsigned long)lba);
+            dr = disk_read(pdrv, pbuff, lba, 1);           
             if (dr == RES_OK) {
                 printf(" - ok.\n");
             } else {
                 printf(" - failed.\n");
                 return 22;
             }
-            printf(" disk_read(%u, 0x%X, %lu, 1)", pdrv, (UINT)(pbuff+sz_sect), (unsigned long)lba2);
-//            dr = disk_read(pdrv, pbuff+sz_sect, lba2, 1);
-            dr = prvFFRead(pbuff+sz_sect, lba2, 1, pxDisk); 
-            
+            printf(" disk_read(%p, 0x%X, %lu, 1)", pdrv, (UINT)(pbuff+sz_sect), (unsigned long)lba2);
+            dr = disk_read(pdrv, pbuff+sz_sect, lba2, 1);
             if (dr == RES_OK) {
                 printf(" - ok.\n");
             } else {
@@ -346,8 +333,6 @@ int test_diskio (
         }
         pns++;
         
-        FF_SDDiskDelete( pxDisk );
-
         printf("**** Test cycle %u of %u completed ****\n\n", cc, ncyc);
     }
    

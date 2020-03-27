@@ -11,9 +11,9 @@
  */
 
 #include <stdio.h>
+#include <stdarg.h> // varargs
 
 #include "project.h"  // Generated code
-
 
 // FreeRTOS:
 #include "FreeRTOS.h"
@@ -23,7 +23,6 @@ extern bool die;
 extern void CLI_Start();
 extern void register_fs_tests();
 extern void PrintDateTime(void);
-
 
 void my_assert_func (const char *file, int line, const char *func, const char *pred) {
     fflush(stdout);
@@ -78,5 +77,17 @@ void vApplicationIdleHook(void)
     Cy_SysPm_Sleep(CY_SYSPM_WAIT_FOR_INTERRUPT);
 }
 
+
+void my_printf(const char *pcFormat, ...) {
+	char pcBuffer[256] = { 0 };
+	va_list xArgs;
+	va_start(xArgs, pcFormat);
+	vsnprintf(pcBuffer, sizeof(pcBuffer), pcFormat, xArgs);
+	va_end(xArgs); 
+    fflush(stdout);
+    printf("%p, %s: %s", xTaskGetCurrentTaskHandle(),
+			pcTaskGetName(xTaskGetCurrentTaskHandle()), pcBuffer);
+    fflush(stdout);    
+}
 
 /* [] END OF FILE */

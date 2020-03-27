@@ -79,6 +79,32 @@ static void ls() {
 	}while (FF_ERR_NONE == ff_findnext( &xFindStruct ));
 }
  
+static bool mount(FF_Disk_t **ppxDisk, const char *const devName, const char *const path) {
+    *ppxDisk = FF_SDDiskInit( devName );
+    if (!*ppxDisk) {
+        return false;
+    }
+    FF_Error_t xError = FF_Mount(*ppxDisk, (*ppxDisk)->xStatus.bPartitionNumber);
+    if (FF_isERR( xError ) != pdFALSE) {
+	    FF_PRINTF("FF_SDDiskMount: %s\n", (const char *) FF_GetErrMessage(xError));
+        return false;
+    }
+    return FF_FS_Add( path, *ppxDisk );
+}
+static void unmount(FF_Disk_t *pxDisk, const char *pcPath) {
+	FF_FS_Remove(pcPath);
+
+	/*Unmount the partition. */
+	FF_Error_t xError = FF_Unmount(pxDisk);
+    if (FF_isERR( xError ) != pdFALSE) {
+    	FF_PRINTF("FF_Unmount: %s\n", (const char *) FF_GetErrMessage(xError));
+    }
+	pxDisk->xStatus.bIsMounted = pdFALSE;
+
+	FF_SDDiskDelete(pxDisk);
+	pxDisk = 0;
+}
+
 // Maximum number of elements in buffer
 #define BUFFER_MAX_LEN 10
 
@@ -228,8 +254,8 @@ static BaseType_t runMount(char *pcWriteBuffer,
 	char buf[cmdMAX_INPUT_SIZE];
 	snprintf(buf, cmdMAX_INPUT_SIZE, "/%s", pcParameter); // Add '/' for path
 	FF_Disk_t *pxDisk;
-	FF_Error_t xError = FF_SDDiskMount(&pxDisk, pcParameter, buf);
-	configASSERT(FF_isERR( xError ) == pdFALSE);
+	bool rc = mount(&pxDisk, pcParameter, buf);
+	configASSERT(rc);
 
     return pdFALSE;
 }
@@ -289,12 +315,12 @@ static BaseType_t runCreateDiskAndExampleFiles(char *pcWriteBuffer,
 	char buf[cmdMAX_INPUT_SIZE];
 	snprintf(buf, cmdMAX_INPUT_SIZE, "/%s", pcParameter); // Add '/' for path
 	FF_Disk_t *pxDisk;
-	FF_Error_t xError = FF_SDDiskMount(&pxDisk, pcParameter, buf);
-	configASSERT(FF_isERR( xError ) == pdFALSE);
+	bool rc = mount(&pxDisk, pcParameter, buf);
+	configASSERT(rc);
 
 	vCreateAndVerifyExampleFiles(buf);
 
-	FF_SDDiskUnmount(pxDisk, buf);
+	unmount(pxDisk, buf);
 	return pdFALSE;
 }
 static const CLI_Command_Definition_t xExampFiles = { 
@@ -324,8 +350,8 @@ static BaseType_t runStdioWithCWDTest(char *pcWriteBuffer,
 	char buf[cmdMAX_INPUT_SIZE];
 	snprintf(buf, cmdMAX_INPUT_SIZE, "/%s", pcParameter); // Add '/' for path
 	FF_Disk_t *pxDisk;
-	FF_Error_t xError = FF_SDDiskMount(&pxDisk, pcParameter, buf);
-	configASSERT(FF_isERR( xError ) == pdFALSE);
+	bool rc = mount(&pxDisk, pcParameter, buf);
+	configASSERT(rc);
 
     // Clear out leftovers from earlier runs
     ff_chdir(buf);
@@ -335,7 +361,7 @@ static BaseType_t runStdioWithCWDTest(char *pcWriteBuffer,
     
 	vStdioWithCWDTest(buf);
 
-	FF_SDDiskUnmount(pxDisk, buf);
+	unmount(pxDisk, buf);
 	return pdFALSE;
 }
 static const CLI_Command_Definition_t xStdioWithCWDTest = { 
@@ -354,10 +380,8 @@ static BaseType_t runMultiTaskStdioWithCWDTest(char *pcWriteBuffer,
 	(void) xWriteBufferLen;
 
 	FF_Disk_t *pxDisk;
-	FF_Error_t xError;
-
-	xError = FF_SDDiskMount(&pxDisk, "SDCard", "/SDCard");
-	configASSERT(FF_isERR( xError ) == pdFALSE);
+    bool rc = mount(&pxDisk, "SDCard", "/SDCard");
+	configASSERT(rc);
 
 	ff_deltree("/SDCard/0");
 	ff_deltree("/SDCard/1");
@@ -395,13 +419,13 @@ static BaseType_t runSimpleFSTest(char *pcWriteBuffer,
 	/* Sanity check something was returned. */
 	configASSERT(pcParameter);
 
-	FF_Disk_t *pxDisk;
-	FF_Error_t xError = FF_SDDiskMount(&pxDisk, pcParameter, "/fs");
-	configASSERT(FF_isERR( xError ) == pdFALSE);
+	FF_Disk_t *pxDisk;    
+    bool rc = mount(&pxDisk, pcParameter, "/fs");
+	configASSERT(rc);
 
 	prvSimpleTest();    
 
-	FF_SDDiskUnmount(pxDisk, "/fs");
+	unmount(pxDisk, "/fs");
 	return pdFALSE;
 }
 static const CLI_Command_Definition_t xSimpleFSTest = { 
