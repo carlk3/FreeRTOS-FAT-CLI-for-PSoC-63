@@ -247,7 +247,7 @@ typedef enum {
 } cmdSupported;
 
 //#define DBG_PRINTF(fmt, args...) /* Don't do anything */
-extern void my_printf(const char *pcFormat, ...);
+extern void my_printf(const char *pcFormat, ...) __attribute__ ((format (printf, 1, 2)));
 #define DBG_PRINTF my_printf
 //#define DBG_PRINTF(fmt, args...)    FF_PRINTF(fmt, ## args)
 
@@ -262,6 +262,14 @@ sd_t *sd_get_by_name(const char *const name) {
 			return NULL;
 		}
 		return &sd_cards[i];
+}        
+
+sd_t *sd_get_by_num(size_t num) {
+    if (num <= sizeof(sd_cards) / sizeof(sd_cards[0])) {
+        return &sd_cards[num];
+    } else {
+        return NULL;
+    }
 }        
 
 /* SIZE in Bytes */

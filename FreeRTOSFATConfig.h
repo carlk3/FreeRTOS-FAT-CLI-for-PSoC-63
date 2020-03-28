@@ -317,7 +317,7 @@ struct tm *gmtime_r( const time_t *pxTime, struct tm *tmStruct );
 /* Prototype for the function used to print out.  In this case it prints to the
 console before the network is connected then a UDP port after the network has
 connected. */
-extern void vLoggingPrintf( const char *pcFormatString, ... );
+extern void vLoggingPrintf( const char *pcFormatString, ... ) __attribute__ ((format (printf, 1, 2)));
 //#define FF_PRINTF vLoggingPrintf
 #if defined(DEBUG) && !defined(NDEBUG)
 #define FF_PRINTF(fmt, args...)    vLoggingPrintf(fmt, ## args)

@@ -22,7 +22,7 @@
 #include "sd_card.h"
 
 //#define DBG_PRINTF(fmt, args...) /* Don't do anything */
-extern void my_printf(const char *pcFormat, ...);
+extern void my_printf(const char *pcFormat, ...) __attribute__ ((format (printf, 1, 2)));
 #define DBG_PRINTF my_printf
 
 // Lock the SPI and set SS appropriately for this SD Card
@@ -143,7 +143,7 @@ bool sd_spi_transfer(sd_t *this, const uint8_t *tx, uint8_t *rx, size_t length) 
 	/* If no error wait till master sends data in Tx FIFO */
 	if ((errorStatus != CY_SCB_SPI_SUCCESS)
 			&& (errorStatus != CY_SCB_SPI_TRANSFER_BUSY)) {
-		DBG_PRINTF("Cy_SCB_SPI_Transfer failed. Status: 0x%02lx\n", errorStatus);
+		DBG_PRINTF("Cy_SCB_SPI_Transfer failed. Status: 0x%02x\n", errorStatus);
 		configASSERT(false);
 		sd_spi_release(this);
 		return false;
@@ -177,7 +177,7 @@ bool sd_spi_transfer(sd_t *this, const uint8_t *tx, uint8_t *rx, size_t length) 
 	}
 	uint32_t nxf = Cy_SCB_SPI_GetNumTransfered(this->spi->base, this->spi->context);
 	if (nxf != length) {
-		DBG_PRINTF("SPI_Transfer failed. length=%d NumTransfered=%d.\n", length, nxf);
+		DBG_PRINTF("SPI_Transfer failed. length=%u NumTransfered=%lu.\n", length, nxf);
 		sd_spi_release(this);
 		configASSERT(false);
 		return false;
