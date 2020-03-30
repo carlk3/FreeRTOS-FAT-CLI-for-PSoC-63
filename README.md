@@ -35,7 +35,7 @@ Getting Started; Software
   * git remote add origin https://github.com/carlk3/FreeRTOS-FAT-CLI-for-PSoC-63.git
   * git pull origin master
 * Open FreeRTOS+FAT+CLI.cyprj with PSoC Creator
-* Tailor ff_sddisk_config.h to match hardware
+* Tailor hw_config.c to match hardware
 * Program the device
 
 Getting Started; Running
