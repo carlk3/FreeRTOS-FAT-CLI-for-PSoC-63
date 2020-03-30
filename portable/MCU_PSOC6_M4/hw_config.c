@@ -9,10 +9,27 @@
  *
  * ========================================
 */
+/* 
+
+This file should be tailored to match the hardware design that is specified in 
+TopDesign.cysch and Design Wide Resources/Pins (the .cydwr file).
+
+There should be one element of the spi[] array for each hardware SPI, and the 
+name prefix (e.g.: "SPI_1") will depend on the name given in TopDesign.
+Each SPI needs its own interrupt callback function that specifies the correct 
+element in the spi[] array. E.g.: spi[0]. 
+
+There should be one element of the sd_cards[] array for each SD card slot. 
+(There is no corresponding component in TopDesign.) 
+The name is arbitrary. The rest of the constants will depend on the type of socket,
+which SPI it is driven by, and how it is wired.
+
+*/
+
 
 #include <string.h>
 #include <assert.h>
- 
+
 /* FreeRTOS includes. */
 #include "FreeRTOS.h"
 
@@ -28,7 +45,7 @@ extern void my_printf(const char *pcFormat, ...) __attribute__ ((format (printf,
 void SPI_1_handle_event(uint32_t event);
 
 // Hardware Configuration of SPI "objects"
-// Note that multiple SD cards can be on one SPI if they use different slave selects.
+// Note: multiple SD cards can be driven by one SPI if they use different slave selects.
 static spi_t spi[] = { // One for each SPI. 
 		{
 			.base = SPI_1_HW, // SPI component
@@ -41,7 +58,7 @@ static spi_t spi[] = { // One for each SPI.
 			.intcfg = &SPI_1_SCB_IRQ_cfg, // Interrupt
 			.userIsr = &SPI_1_Interrupt, // Interrupt
 			.callback = SPI_1_handle_event, // Interrupt callback
-            .initialized = false, //initialized flag
+			.initialized = false, //initialized flag
 			.owner = 0, // Owning task, assigned dynamically
 			.mutex = 0  // Guard semaphore, assigned dynamically
 		}
@@ -52,15 +69,15 @@ static sd_t sd_cards[] = { 	// One for each SD card
 	{ 
 			.pcName = "SDCard",   // Name used to mount device
 			.spi = &spi[0], // Pointer to the SPI driving this card
-    		.ss = SPI_1_SPI_SLAVE_SELECT0, // The SPI slave select line for this SD card
+			.ss = SPI_1_SPI_SLAVE_SELECT0, // The SPI slave select line for this SD card
 			.card_detect_gpio_port = Card_Detect_PORT, // Card detect
 			.card_detect_gpio_num = Card_Detect_NUM, // Card detect
 			.card_detected_true = 0, // truth (card is present) is 0 
 			.initialized = false, 
-            .m_Status = 0, 
-            .sectors = 0, 
-            .card_type = 0, 
-            .mutex = 0
+			.m_Status = 0, 
+			.sectors = 0, 
+			.card_type = 0, 
+			.mutex = 0
 	}	
 };
 
@@ -78,10 +95,10 @@ void SPI_1_handle_event(uint32_t event) {
 		BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 		/* Send a notification directly to the task to which interrupt processing is
 		 being deferred. */
-        configASSERT(spi[0].owner);
-        if (spi[0].owner) {
-            vTaskNotifyGiveFromISR(spi[0].owner, &xHigherPriorityTaskWoken);
-        }
+		configASSERT(spi[0].owner);
+		if (spi[0].owner) {
+			vTaskNotifyGiveFromISR(spi[0].owner, &xHigherPriorityTaskWoken);
+		}
 		/* Pass the xHigherPriorityTaskWoken value into portYIELD_FROM_ISR(). If
 		 xHigherPriorityTaskWoken was set to pdTRUE inside vTaskNotifyGiveFromISR()
 		 then calling portYIELD_FROM_ISR() will request a context switch. If
@@ -91,7 +108,7 @@ void SPI_1_handle_event(uint32_t event) {
 	} else {
 		if (MASTER_ERROR_MASK & event) {
 			DBG_PRINTF("SPI_1_handle_event. Event: 0x%lx\n", event);
-            assert(!(MASTER_ERROR_MASK & event));
+			assert(!(MASTER_ERROR_MASK & event));
 		}
 	}
 }
@@ -110,11 +127,11 @@ sd_t *sd_get_by_name(const char *const name) {
 }        
 
 sd_t *sd_get_by_num(size_t num) {
-    if (num <= sizeof(sd_cards) / sizeof(sd_cards[0])) {
-        return &sd_cards[num];
-    } else {
-        return NULL;
-    }
+	if (num <= sizeof(sd_cards) / sizeof(sd_cards[0])) {
+		return &sd_cards[num];
+	} else {
+		return NULL;
+	}
 }        
 
 
