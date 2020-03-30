@@ -33,10 +33,10 @@
 
 #include "ff_sddisk.h"
 #include "ff_ioman.h"
-#include "sd_card.h"
+#include "hw_config.h"
 
 /* A function to write sectors to the device. */
-static int32_t write(uint8_t *pucSource, /* Source of data to be written. */
+static int32_t prvWrite(uint8_t *pucSource, /* Source of data to be written. */
 		uint32_t ulSectorNumber, /* The first sector being written to. */
 		uint32_t ulSectorCount, /* The number of sectors to write. */
 		FF_Disk_t *pxDisk) /* Describes the disk being written to. */
@@ -49,7 +49,7 @@ static int32_t write(uint8_t *pucSource, /* Source of data to be written. */
 	}
 }
 
-static int32_t read(uint8_t *pucDestination, /* Destination for data being read. */
+static int32_t prvRead(uint8_t *pucDestination, /* Destination for data being read. */
 		uint32_t ulSectorNumber, /* Sector from which to start reading data. */
 		uint32_t ulSectorCount, /* Number of sectors to read. */
 		FF_Disk_t *pxDisk) /* Describes the disk being read from. */
@@ -118,8 +118,8 @@ FF_Disk_t *FF_SDDiskInit(const char *pcName) {
 		xParameters.pucCacheMemory = NULL;
 		xParameters.ulMemorySize = xIOManagerCacheSize;
 		xParameters.ulSectorSize = SECTOR_SIZE;
-		xParameters.fnWriteBlocks = write;
-		xParameters.fnReadBlocks = read;
+		xParameters.fnWriteBlocks = prvWrite;
+		xParameters.fnReadBlocks = prvRead;
 		xParameters.pxDisk = pxDisk;
 		xParameters.pvSemaphore = (void *) xSemaphoreCreateRecursiveMutex();
 		xParameters.xBlockDeviceIsReentrant = pdTRUE;

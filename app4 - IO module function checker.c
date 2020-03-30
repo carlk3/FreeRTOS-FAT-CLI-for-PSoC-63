@@ -11,7 +11,7 @@
 //#include "ff.h"         /* Declarations of sector size */
 //#include "diskio.h"     /* Declarations of disk functions */
 
-#include "sd_card.h"
+#include "hw_config.h"
 
 typedef uint32_t DWORD;
 typedef unsigned int UINT;

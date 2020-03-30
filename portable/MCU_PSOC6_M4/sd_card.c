@@ -157,7 +157,7 @@
 #endif
 
 // Hardware Configuration of the SPI and SD Card "objects"
-#include "sd_card_config.h"
+#include "hw_config.h"
 
 /* Disk Status Bits (DSTATUS) */
 enum {
@@ -250,27 +250,6 @@ typedef enum {
 extern void my_printf(const char *pcFormat, ...) __attribute__ ((format (printf, 1, 2)));
 #define DBG_PRINTF my_printf
 //#define DBG_PRINTF(fmt, args...)    FF_PRINTF(fmt, ## args)
-
-sd_t *sd_get_by_name(const char *const name) {
-		size_t i;
-		for (i = 0; i < sizeof(sd_cards) / sizeof(sd_cards[0]); ++i) {
-			if (0 == strcmp(sd_cards[i].pcName, name))
-				break;
-		}
-		if (sizeof(sd_cards) / sizeof(sd_cards[0]) == i) {
-			DBG_PRINTF("FF_SDDiskInit: unknown name %s\n", name);
-			return NULL;
-		}
-		return &sd_cards[i];
-}        
-
-sd_t *sd_get_by_num(size_t num) {
-    if (num <= sizeof(sd_cards) / sizeof(sd_cards[0])) {
-        return &sd_cards[num];
-    } else {
-        return NULL;
-    }
-}        
 
 /* SIZE in Bytes */
 #define PACKET_SIZE              6           /*!< SD Packet size CMD+ARG+CRC */

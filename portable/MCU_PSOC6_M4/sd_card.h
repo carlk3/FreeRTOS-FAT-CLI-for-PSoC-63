@@ -51,8 +51,6 @@ typedef struct {
 #define SD_BLOCK_DEVICE_ERROR_ERASE              -5010  /*!< Erase error: reset/sequence */
 #define SD_BLOCK_DEVICE_ERROR_WRITE              -5011  /*!< SPI Write error: !SPI_DATA_ACCEPTED */
 
-sd_t *sd_get_by_name(const char *const name);
-sd_t *sd_get_by_num(size_t num);
 int sd_driver_init(sd_t *this);
 int sd_write_blocks(sd_t *this, const uint8_t *buffer, uint64_t ulSectorNumber, uint32_t blockCnt);
 int sd_read_blocks(sd_t *this, uint8_t *buffer, uint64_t ulSectorNumber, uint32_t ulSectorCount);
