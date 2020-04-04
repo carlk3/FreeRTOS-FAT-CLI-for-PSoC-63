@@ -13,9 +13,7 @@
 #include "project.h"
 #include "spi.h"
 
-//#define DBG_PRINTF(fmt, args...) /* Don't do anything */
-extern void my_printf(const char *pcFormat, ...) __attribute__ ((format (printf, 1, 2)));
-#define DBG_PRINTF my_printf
+#include "FreeRTOSFATConfig.h" // for DBG_PRINTF
 
 bool spi_init(spi_t *this) {
 	cy_en_scb_spi_status_t initStatus;

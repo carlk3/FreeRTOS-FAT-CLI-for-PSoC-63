@@ -17,6 +17,7 @@
 
 /* FreeRTOS includes. */
 #include "FreeRTOS.h"
+#include "ff_headers.h"    
 #include <semphr.h>
 
 #include "project.h"
@@ -31,11 +32,15 @@ typedef struct {
 	GPIO_PRT_Type * const card_detect_gpio_port; // Card detect
 	const uint32_t card_detect_gpio_num; // Card detect
 	const uint32_t card_detected_true; // 0 for full-size SD, 1 for micro
-	bool initialized;   // Assigned dynamically    
+	const cy_stc_sysint_t *card_detect_gpio_port_int_cfg; // Port Interrupt configuration structure
+	const cy_israddress card_detect_gpio_ISR; //Address of the ISR for the port interrupt;
+	  // can be NULL if ISR is shared over multiple cards
+	TaskHandle_t card_detect_task; // handles card detect ISRs
 	int m_Status; // Card status
 	uint64_t sectors;   // Assigned dynamically
 	int card_type;  // Assigned dynamically
 	SemaphoreHandle_t mutex; // Guard semaphore, assigned dynamically
+	FF_Disk_t ff_disk;
 } sd_t;
 
 #define SD_BLOCK_DEVICE_ERROR_NONE                   0
@@ -51,7 +56,8 @@ typedef struct {
 #define SD_BLOCK_DEVICE_ERROR_ERASE              -5010  /*!< Erase error: reset/sequence */
 #define SD_BLOCK_DEVICE_ERROR_WRITE              -5011  /*!< SPI Write error: !SPI_DATA_ACCEPTED */
 
-int sd_driver_init(sd_t *this);
+int sd_init(sd_t *this);
+int sd_deinit(sd_t *this);
 int sd_write_blocks(sd_t *this, const uint8_t *buffer, uint64_t ulSectorNumber, uint32_t blockCnt);
 int sd_read_blocks(sd_t *this, uint8_t *buffer, uint64_t ulSectorNumber, uint32_t ulSectorCount);
 bool sd_card_detect(sd_t *this);

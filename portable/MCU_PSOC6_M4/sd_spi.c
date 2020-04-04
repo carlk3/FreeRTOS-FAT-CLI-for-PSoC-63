@@ -15,15 +15,12 @@
 
 /* FreeRTOS includes. */
 #include "FreeRTOS.h"
+#include "FreeRTOSFATConfig.h" // for DBG_PRINTF
 
 #include "project.h"
 
 #include "spi.h"
 #include "sd_card.h"
-
-//#define DBG_PRINTF(fmt, args...) /* Don't do anything */
-extern void my_printf(const char *pcFormat, ...) __attribute__ ((format (printf, 1, 2)));
-#define DBG_PRINTF my_printf
 
 // Lock the SPI and set SS appropriately for this SD Card
 // Note: The Cy_SCB_SPI_SetActiveSlaveSelect really only needs to be done here if multiple SDs are on the same SPI.

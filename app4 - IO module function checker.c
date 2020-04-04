@@ -99,7 +99,7 @@ int test_diskio (
 			return -1;            
         }
 		// Initialize the media driver
-		if (0 != sd_driver_init(pdrv)) {
+		if (0 != sd_init(pdrv)) {
 			// Couldn't init
             printf(" - failed.\n");
             return 2;

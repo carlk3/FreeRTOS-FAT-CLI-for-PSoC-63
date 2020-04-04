@@ -35,6 +35,12 @@
 #include "ff_ioman.h"
 #include "hw_config.h"
 
+#define HUNDRED_64_BIT			100ULL
+#define SECTOR_SIZE				512UL
+#define PARTITION_NUMBER		0 /* Only a single partition is used. */
+#define BYTES_PER_KB			( 1024ull )
+#define SECTORS_PER_KB			( BYTES_PER_KB / 512ull )
+
 /* A function to write sectors to the device. */
 static int32_t prvWrite(uint8_t *pucSource, /* Source of data to be written. */
 		uint32_t ulSectorNumber, /* The first sector being written to. */
@@ -45,10 +51,11 @@ static int32_t prvWrite(uint8_t *pucSource, /* Source of data to be written. */
 	if (SD_BLOCK_DEVICE_ERROR_NONE == status) {
 		return FF_ERR_NONE;
 	} else {
-		return FF_ERR_DEVICE_DRIVER_FAILED;
+		return FF_ERR_IOMAN_DRIVER_FATAL_ERROR | FF_ERRFLAG;
 	}
 }
 
+/* A function to read sectors from the device. */
 static int32_t prvRead(uint8_t *pucDestination, /* Destination for data being read. */
 		uint32_t ulSectorNumber, /* Sector from which to start reading data. */
 		uint32_t ulSectorCount, /* Number of sectors to read. */
@@ -58,7 +65,7 @@ static int32_t prvRead(uint8_t *pucDestination, /* Destination for data being re
 	if (SD_BLOCK_DEVICE_ERROR_NONE == status) {
 		return FF_ERR_NONE;
 	} else {
-		return FF_ERR_DEVICE_DRIVER_FAILED;
+		return FF_ERR_IOMAN_DRIVER_FATAL_ERROR | FF_ERRFLAG;
 	}
 }
 
@@ -68,114 +75,108 @@ BaseType_t FF_SDDiskDetect(FF_Disk_t *pxDisk) {
 	return sd_card_detect(pxDisk->pvTag);
 }
 
-FF_Disk_t *FF_SDDiskInit(const char *pcName) {
+static bool disk_init(sd_t *pSD) {
 	FF_Error_t xError = 0;
-	FF_Disk_t *pxDisk = NULL;
 	FF_CreationParameters_t xParameters;
-
-	const BaseType_t SECTOR_SIZE = 512;
 	const uint32_t xIOManagerCacheSize = 4 * SECTOR_SIZE;
 
 	/* Check the validity of the xIOManagerCacheSize parameter. */
 	configASSERT((xIOManagerCacheSize % SECTOR_SIZE) == 0);
-	configASSERT((xIOManagerCacheSize >= (2 * SECTOR_SIZE)));
+	configASSERT((xIOManagerCacheSize >= (2 * SECTOR_SIZE)));    
 
-	/* Attempt to allocated the FF_Disk_t structure. */
-	pxDisk = (FF_Disk_t *) pvPortMalloc(sizeof(FF_Disk_t));
-
-	if (pxDisk != NULL) {
-
-		/* It is advisable to clear the entire structure to zero after it has been
-		 allocated – that way the media driver will be compatible with future
-		 FreeRTOS+FAT versions, in which the FF_Disk_t structure may include
-		 additional members. */
-		memset(pxDisk, 0, sizeof(FF_Disk_t));
-
-		sd_t *sd = sd_get_by_name(pcName);
-		if (!sd) {
-			FF_PRINTF("FF_SDDiskInit: unknown name %s\n", pcName);
-			return NULL;
-		}
-		/* The pvTag member of the FF_Disk_t structure allows the structure to be
-		 extended to also include media specific parameters.  */
-		pxDisk->pvTag = sd;
-
-		// Initialize the media driver
-		if (sd_driver_init(sd)) {
-			// Couldn't init
-			vPortFree(pxDisk);
-			return NULL;
-		}
-
-		/* The number of sectors is recorded for bounds checking in the read and
-		 write functions. */
-		pxDisk->ulNumberOfSectors = sd->sectors;
-
-		/* Create the IO manager that will be used to control the disk –
-		 the FF_CreationParameters_t structure completed with the required
-		 parameters, then passed into the FF_CreateIOManager() function. */
-		memset(&xParameters, 0, sizeof xParameters);
-		xParameters.pucCacheMemory = NULL;
-		xParameters.ulMemorySize = xIOManagerCacheSize;
-		xParameters.ulSectorSize = SECTOR_SIZE;
-		xParameters.fnWriteBlocks = prvWrite;
-		xParameters.fnReadBlocks = prvRead;
-		xParameters.pxDisk = pxDisk;
-		xParameters.pvSemaphore = (void *) xSemaphoreCreateRecursiveMutex();
-		xParameters.xBlockDeviceIsReentrant = pdTRUE;
-
-		pxDisk->pxIOManager = FF_CreateIOManger(&xParameters, &xError);
-
-		if ((pxDisk->pxIOManager != NULL) && (FF_isERR(xError) == pdFALSE)) {
-			/* Record that the disk has been initialised. */
-			pxDisk->xStatus.bIsInitialised = pdTRUE;
-		} else {
-			/* The disk structure was allocated, but the disk’s IO manager could
-			 not be allocated, so free the disk again. */
-			FF_SDDiskDelete(pxDisk);
-			pxDisk = NULL;
-			FF_PRINTF("FF_SDDiskInit: FF_CreateIOManger: %s\n", (const char *) FF_GetErrMessage(xError));
-			configASSERT(!"disk's IO manager could not be allocated!");
-		}
+	// Initialize the media driver
+	if (sd_init(pSD)) {
+		// Couldn't init
+		return false;
 	}
-	return pxDisk;
+
+	/* The number of sectors is recorded for bounds checking in the read and
+	 write functions. */
+	pSD->ff_disk.ulNumberOfSectors = pSD->sectors;
+
+	/* Create the IO manager that will be used to control the disk –
+	 the FF_CreationParameters_t structure completed with the required
+	 parameters, then passed into the FF_CreateIOManager() function. */
+	memset(&xParameters, 0, sizeof xParameters);
+	xParameters.pucCacheMemory = NULL;
+	xParameters.ulMemorySize = xIOManagerCacheSize;
+	xParameters.ulSectorSize = SECTOR_SIZE;
+	xParameters.fnWriteBlocks = prvWrite;
+	xParameters.fnReadBlocks = prvRead;
+	xParameters.pxDisk = &pSD->ff_disk;
+	xParameters.pvSemaphore = (void *) xSemaphoreCreateRecursiveMutex();
+	xParameters.xBlockDeviceIsReentrant = pdTRUE;
+
+	pSD->ff_disk.pxIOManager = FF_CreateIOManger(&xParameters, &xError);
+
+	if ((pSD->ff_disk.pxIOManager != NULL) && (FF_isERR(xError) == pdFALSE)) {
+		/* Record that the disk has been initialised. */
+		pSD->ff_disk.xStatus.bIsInitialised = pdTRUE;
+	} else {
+		/* The disk structure was allocated, but the disk’s IO manager could
+		 not be allocated, so free the disk again. */
+		FF_SDDiskDelete(&pSD->ff_disk);
+		FF_PRINTF("FF_SDDiskInit: FF_CreateIOManger: %s\n", (const char *) FF_GetErrMessage(xError));
+		configASSERT(!"disk's IO manager could not be allocated!");
+		pSD->ff_disk.xStatus.bIsInitialised = pdFALSE;
+	}    
+	return true;
+}
+
+FF_Disk_t *FF_SDDiskInit(const char *pcName) {
+	sd_t *pSD = sd_get_by_name(pcName);
+	if (!pSD) {
+		FF_PRINTF("FF_SDDiskInit: unknown name %s\n", pcName);
+		return NULL;
+	}
+	if (disk_init(pSD))
+		return &pSD->ff_disk;
+	else 
+		return NULL;
 }
 
 BaseType_t FF_SDDiskReinit( FF_Disk_t *pxDisk ) {
-    (void) pxDisk;
-    return pdPASS;
+	return disk_init(pxDisk->pvTag) ? pdPASS : pdFAIL;
 }
 
 /* Unmount the volume */
 // FF_SDDiskUnmount() calls FF_Unmount().
 BaseType_t FF_SDDiskUnmount( FF_Disk_t *pDisk ) {
-    return FF_Unmount(pDisk);
+	FF_Error_t e = FF_Unmount(pDisk);
+	if (FF_ERR_NONE != e) {
+		FF_PRINTF("FF_Unmount error: %s\n", FF_GetErrMessage(e));
+	} else {
+		pDisk->xStatus.bIsMounted = pdFALSE;
+	}
+	return e;
 }
 
 /* Mount the volume */
 // FF_SDDiskMount() calls FF_Mount().
 BaseType_t FF_SDDiskMount( FF_Disk_t *pDisk ) {
-    // FF_Error_t FF_Mount( FF_Disk_t *pxDisk, BaseType_t xPartitionNumber );
-    return FF_Mount(pDisk, 0);
+	// FF_Error_t FF_Mount( FF_Disk_t *pxDisk, BaseType_t xPartitionNumber );
+	FF_Error_t e = FF_Mount(pDisk, PARTITION_NUMBER);
+	if (FF_ERR_NONE != e) {
+		FF_PRINTF("FF_Mount error: %s\n", FF_GetErrMessage(e));
+	} else {
+		pDisk->xStatus.bIsMounted = pdTRUE;
+	}
+	return e;    
 }
 
 BaseType_t FF_SDDiskDelete(FF_Disk_t *pxDisk) {
-	if (pxDisk != NULL) {
+	if (pxDisk) {
 		pxDisk->ulSignature = 0;
-		pxDisk->xStatus.bIsInitialised = 0;
-		if (pxDisk->pxIOManager != NULL) {
+		pxDisk->xStatus.bIsInitialised = pdFALSE;
+		if (pxDisk->pxIOManager) {
 			FF_DeleteIOManager(pxDisk->pxIOManager);
 		}
-		vPortFree(pxDisk);
+		if (pxDisk->pvTag) {
+			sd_deinit(pxDisk->pvTag);                    
+		}
 	}
 	return pdPASS;
 }
-
-#define HUNDRED_64_BIT			100ULL
-#define SECTOR_SIZE				512UL
-#define PARTITION_NUMBER		0 /* Only a single partition is used. */
-#define BYTES_PER_KB			( 1024ull )
-#define SECTORS_PER_KB			( BYTES_PER_KB / 512ull )
 
 /* Show some partition information */
 BaseType_t FF_SDDiskShowPartition(FF_Disk_t *pxDisk) {
@@ -241,26 +242,27 @@ BaseType_t FF_SDDiskShowPartition(FF_Disk_t *pxDisk) {
 
 /* Flush changes from the driver's buf to disk */
 void FF_SDDiskFlush( FF_Disk_t *pDisk ) {
-    (void) pDisk; 
+	FF_FlushCache(pDisk->pxIOManager);
 }
 
 /* Format a given partition on an SD-card. */
 // FF_SDDiskFormat() calls FF_Format() + FF_SDDiskMount().
 BaseType_t FF_SDDiskFormat( FF_Disk_t *pxDisk, BaseType_t aPart ) {
-    // FF_Error_t FF_Format( FF_Disk_t *pxDisk, BaseType_t xPartitionNumber, BaseType_t xPreferFAT16, BaseType_t xSmallClusters );
-    FF_Error_t e = FF_Format(pxDisk, aPart, pdFALSE, pdFALSE);
-    if (FF_ERR_NONE != e) {
-        FF_PRINTF("%s", FF_GetErrMessage(e));
-        return e;
-    }
-    return FF_SDDiskMount(pxDisk);
+	// FF_Error_t FF_Format( FF_Disk_t *pxDisk, BaseType_t xPartitionNumber, BaseType_t xPreferFAT16, BaseType_t xSmallClusters );
+	FF_Error_t e = FF_Format(pxDisk, aPart, pdFALSE, pdFALSE);
+	if (FF_ERR_NONE != e) {
+		FF_PRINTF("FF_Format error:%s\n", FF_GetErrMessage(e));
+		return e;
+	}
+	return FF_SDDiskMount(pxDisk);
 }
 
 /* Return non-zero if an SD-card is detected in a given slot. */
 BaseType_t FF_SDDiskInserted( BaseType_t xDriveNr ) {
-    sd_t *sd = sd_get_by_num(xDriveNr);
-    if (!sd) return false;
-	return sd_card_detect(sd);
+	sd_t *pSD = sd_get_by_num(xDriveNr);
+	if (!pSD) return false;
+	return sd_card_detect(pSD);
 }
 
 /*-----------------------------------------------------------*/
+

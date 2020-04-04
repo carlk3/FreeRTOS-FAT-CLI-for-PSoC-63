@@ -13,7 +13,7 @@
  * Copyright (c) 2006-2019 ARM Limited
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
+ * you may not use pSD file except in compliance with the License.
  * You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
@@ -26,6 +26,7 @@
  */
 
 /* FreeRTOS+FAT includes. */
+#include <FreeRTOS.h>
 #include "ff_headers.h"
 #include "ff_stdio.h"
 #include "ff_sddisk.h"
@@ -76,15 +77,62 @@ static void ls() {
 		 attributes string. */
 		FF_PRINTF("%s [%s] [size=%d]\n", xFindStruct.pcFileName, pcAttrib,
 				(int) xFindStruct.ulFileSize);
-	}while (FF_ERR_NONE == ff_findnext( &xFindStruct ));
+	} while (FF_ERR_NONE == ff_findnext( &xFindStruct ));
+}
+
+#define HIDDEN_SECTOR_COUNT     8
+#define PRIMARY_PARTITIONS      1
+#define PARTITION_NUMBER        0
+
+static FF_Error_t prvPartitionAndFormatDisk( FF_Disk_t *pxDisk )
+{
+FF_PartitionParameters_t xPartition;
+FF_Error_t xError;
+
+    /* Media cannot be used until it has been partitioned.  In this
+	case a single partition is to be created that fills all available space – so
+	by clearing the xPartition structure to zero. */
+    memset( &xPartition, 0x00, sizeof( xPartition ) );
+    xPartition.ulSectorCount = pxDisk->ulNumberOfSectors;
+    xPartition.ulHiddenSectors = HIDDEN_SECTOR_COUNT;
+    xPartition.xPrimaryCount = PRIMARY_PARTITIONS;
+    xPartition.eSizeType = eSizeIsQuota;
+
+    /* Perform the partitioning. */
+    xError = FF_Partition( pxDisk, &xPartition );
+
+    /* Print out the result of the partition operation. */
+    FF_PRINTF( "FF_Partition: %s\n", FF_GetErrMessage( xError ) );
+
+    /* Was the disk partitioned successfully? */
+    if( FF_isERR( xError ) == pdFALSE )
+    {
+        /* The disk was partitioned successfully.  Format the first partition. */
+        xError = FF_Format( pxDisk, 0, pdFALSE, pdFALSE );
+
+        /* Print out the result of the format operation. */
+        FF_PRINTF( "FF_Format: %s\n", FF_GetErrMessage( xError ) );
+    }
+
+    return xError;
 }
  
+static bool format(FF_Disk_t **ppxDisk, const char *const devName) {
+    *ppxDisk = FF_SDDiskInit( devName );
+    if (!*ppxDisk) {
+        return false;
+    }
+    FF_Error_t e = prvPartitionAndFormatDisk(*ppxDisk);
+    return FF_ERR_NONE == e ? true : false;
+}
+
 static bool mount(FF_Disk_t **ppxDisk, const char *const devName, const char *const path) {
     *ppxDisk = FF_SDDiskInit( devName );
     if (!*ppxDisk) {
         return false;
     }
-    FF_Error_t xError = FF_Mount(*ppxDisk, (*ppxDisk)->xStatus.bPartitionNumber);
+    // BaseType_t FF_SDDiskMount( FF_Disk_t *pDisk );
+    FF_Error_t xError = FF_SDDiskMount(*ppxDisk);
     if (FF_isERR( xError ) != pdFALSE) {
 	    FF_PRINTF("FF_SDDiskMount: %s\n", (const char *) FF_GetErrMessage(xError));
         return false;
@@ -95,12 +143,10 @@ static void unmount(FF_Disk_t *pxDisk, const char *pcPath) {
 	FF_FS_Remove(pcPath);
 
 	/*Unmount the partition. */
-	FF_Error_t xError = FF_Unmount(pxDisk);
+	FF_Error_t xError = FF_SDDiskUnmount(pxDisk);
     if (FF_isERR( xError ) != pdFALSE) {
     	FF_PRINTF("FF_Unmount: %s\n", (const char *) FF_GetErrMessage(xError));
     }
-	pxDisk->xStatus.bIsMounted = pdFALSE;
-
 	FF_SDDiskDelete(pxDisk);
 	pxDisk = 0;
 }
@@ -235,6 +281,43 @@ static void prvSimpleTest() {
 }
 
 /*-----------------------------------------------------------*/
+static BaseType_t runFormat(char *pcWriteBuffer,
+		size_t xWriteBufferLen, const char *pcCommandString) {
+	(void) pcWriteBuffer;
+	(void) xWriteBufferLen;
+	const char *pcParameter;
+	BaseType_t xParameterStringLength;
+
+	/* Obtain the parameter string. */
+	pcParameter = FreeRTOS_CLIGetParameter(
+        pcCommandString, /* The command string itself. */
+	    1, /* Return the first parameter. */
+	    &xParameterStringLength /* Store the parameter string length. */
+	);
+	/* Sanity check something was returned. */
+	configASSERT(pcParameter);
+	FF_Disk_t *pxDisk;
+	bool rc = format(&pxDisk, pcParameter);
+	if (!rc)
+        FF_PRINTF("Format failed!\n");
+    else {        
+//    	/*Unmount the partition. */
+//    	FF_Error_t xError = FF_SDDiskUnmount(pxDisk);
+//        if (FF_isERR( xError ) != pdFALSE) {
+//        	FF_PRINTF("FF_Unmount: %s\n", (const char *) FF_GetErrMessage(xError));
+//        }
+//    	FF_SDDiskDelete(pxDisk);
+    }
+    return pdFALSE;
+}
+static const CLI_Command_Definition_t xFormat = { 
+		"format", /* The command string to type. */
+		"\nformat <device name>:\n Format <device name>\n"
+		"\te.g.: \"format SDCard\"\n", 
+        runFormat, /* The function to run. */
+		1 /* One parameter is expected. */
+};
+/*-----------------------------------------------------------*/
 static BaseType_t runMount(char *pcWriteBuffer,
 		size_t xWriteBufferLen, const char *pcCommandString) {
 	(void) pcWriteBuffer;
@@ -255,8 +338,9 @@ static BaseType_t runMount(char *pcWriteBuffer,
 	snprintf(buf, cmdMAX_INPUT_SIZE, "/%s", pcParameter); // Add '/' for path
 	FF_Disk_t *pxDisk;
 	bool rc = mount(&pxDisk, pcParameter, buf);
-	configASSERT(rc);
-
+	if (!rc)
+        FF_PRINTF("Mount failed!\n");
+        
     return pdFALSE;
 }
 static const CLI_Command_Definition_t xMount = { 
@@ -502,6 +586,7 @@ static const CLI_Command_Definition_t xBFT =
 
 void register_fs_tests() {
 	/* Register all the command line commands defined immediately above. */
+	FreeRTOS_CLIRegisterCommand(&xFormat);        
 	FreeRTOS_CLIRegisterCommand(&xMount);    
 	FreeRTOS_CLIRegisterCommand(&xLowLevIOTests);
 	FreeRTOS_CLIRegisterCommand(&xSimpleFSTest);        

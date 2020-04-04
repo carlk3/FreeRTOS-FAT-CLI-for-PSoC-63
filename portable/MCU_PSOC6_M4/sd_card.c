@@ -149,6 +149,8 @@
 #include <inttypes.h>
 #include <string.h>
 
+#include "FreeRTOSFATConfig.h" // for DBG_PRINTF
+
 #include "sd_spi.h"
 #include "sd_card.h"
 
@@ -245,11 +247,6 @@ typedef enum {
 	ACMD42_SET_CLR_CARD_DETECT = 42,
 	ACMD51_SEND_SCR = 51,
 } cmdSupported;
-
-//#define DBG_PRINTF(fmt, args...) /* Don't do anything */
-extern void my_printf(const char *pcFormat, ...) __attribute__ ((format (printf, 1, 2)));
-#define DBG_PRINTF my_printf
-//#define DBG_PRINTF(fmt, args...)    FF_PRINTF(fmt, ## args)
 
 /* SIZE in Bytes */
 #define PACKET_SIZE              6           /*!< SD Packet size CMD+ARG+CRC */
@@ -687,21 +684,62 @@ static void sd_unlock(sd_t *this) {
 	xSemaphoreGiveRecursive(this->mutex);
 }
 
-int sd_driver_init(sd_t *this) {
+static void CardDetectTask(void *arg) {
+	(void) arg;
+	for (;;) {
+		// Wait for notification from ISR:
+		// uint32_t ulTaskNotifyTake( BaseType_t xClearCountOnExit,
+		//                            TickType_t xTicksToWait );
+		// Returns: The value of the task’s notification value:
+		//  in this case, the SD card number
+		uint32_t card_num = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+		sd_t *pSD = sd_get_by_num(card_num);
+		configASSERT(pSD);
+		FF_Disk_t *pxDisk = &pSD->ff_disk;
+		if (pxDisk->xStatus.bIsInitialised) {
+			sd_lock(pSD);                        
+			if (!sd_card_detect(pSD)) {
+				if (pxDisk->xStatus.bIsMounted) {
+					FF_PRINTF("Invalidating %s\n", pSD->pcName);     
+					FF_Invalidate(pxDisk->pxIOManager);                                
+					FF_PRINTF("Unmounting %s\n", pSD->pcName);                                     
+					FF_Unmount(pxDisk);
+					pxDisk->xStatus.bIsMounted = pdFALSE;                    
+					if (pxDisk->pxIOManager)
+						FF_DeleteIOManager(pxDisk->pxIOManager);
+					sd_deinit(pSD);                    
+					pxDisk->xStatus.bIsInitialised = pdFALSE;
+				}
+			}  
+			sd_unlock(pSD);                
+		}
+	}
+}
+static BaseType_t sd_card_detect_start(sd_t *this) {
+	BaseType_t rc = pdPASS;
+	/* Configure CM4+ CPU GPIO interrupt for Card Detect */
+	if ((this->card_detect_gpio_ISR) // Has an ISR defined
+	&& !(this->card_detect_task)) {  // Not already running
+		rc = xTaskCreate(CardDetectTask, "Card Detect", 256, 0, 2, &this->card_detect_task);
+		configASSERT(pdPASS == rc);
+		Cy_SysInt_Init(this->card_detect_gpio_port_int_cfg, this->card_detect_gpio_ISR); 
+		NVIC_ClearPendingIRQ(this->card_detect_gpio_port_int_cfg->intrSrc);
+		NVIC_EnableIRQ(this->card_detect_gpio_port_int_cfg->intrSrc);   
+	}
+	return rc;
+}
+
+int sd_init(sd_t *this) {
 //	STA_NOINIT = 0x01, /* Drive not initialized */
 //	STA_NODISK = 0x02, /* No medium in the drive */
 //	STA_PROTECT = 0x04 /* Write protected */
 
-	// bool __atomic_test_and_set (void *ptr, int memorder)
-	// This built-in function performs an atomic test-and-set operation on the byte at *ptr. 
-	// The byte is set to some implementation defined nonzero “set” value 
-	// and the return value is true if and only if the previous contents were “set”. 
-	if (__atomic_test_and_set(&(this->initialized), __ATOMIC_SEQ_CST))
-		return this->m_Status;
-
-	this->mutex = xSemaphoreCreateRecursiveMutex();
+	if (!this->mutex)
+		this->mutex = xSemaphoreCreateRecursiveMutex();
 	sd_lock(this);
-    
+	
+	sd_card_detect_start(this);
+	
 	//Initialize the member variables
 	this->card_type = SDCARD_NONE;
 //    m_Crc = true;
@@ -724,10 +762,9 @@ int sd_driver_init(sd_t *this) {
 		sd_unlock(this);
 		return this->m_Status;
 	}
-	int err = SD_BLOCK_DEVICE_ERROR_NONE;
-	err = sd_initialise_card(this);
-	if (!(err == SD_BLOCK_DEVICE_ERROR_NONE)) {
-		DBG_PRINTF("Fail to initialize card\n");
+	int err = sd_initialise_card(this);
+	if (SD_BLOCK_DEVICE_ERROR_NONE != err) {
+		DBG_PRINTF("Failed to initialize card\n");
 		sd_unlock(this);
 		return this->m_Status;
 	}
@@ -754,6 +791,13 @@ int sd_driver_init(sd_t *this) {
 	//Return the disk status
 	return this->m_Status;
 }
+int sd_deinit(sd_t *this) {
+	this->m_Status = STA_NOINIT;
+	this->card_type = SDCARD_NONE;
+	//Return the disk status
+	return this->m_Status;
+}
+
 
 // SPI function to wait till chip is ready and sends start token
 static bool sd_wait_token(sd_t *this, uint8_t token) {    
@@ -841,12 +885,8 @@ sd_read_blocks_unlocked(sd_t *this, uint8_t *buffer, uint64_t ulSectorNumber, ui
 
 	uint32_t blockCnt = ulSectorCount;
 
-	if (ulSectorNumber + blockCnt > this->sectors) {
+	if (ulSectorNumber + blockCnt > this->sectors) 
 		return SD_BLOCK_DEVICE_ERROR_PARAMETER;
-	}
-	if (!this->initialized) {
-		return SD_BLOCK_DEVICE_ERROR_PARAMETER;
-	}
 	if (this->m_Status & STA_NOINIT)
 		return SD_BLOCK_DEVICE_ERROR_PARAMETER;
 
@@ -889,9 +929,9 @@ sd_read_blocks_unlocked(sd_t *this, uint8_t *buffer, uint64_t ulSectorNumber, ui
 
 int sd_read_blocks(sd_t *this, uint8_t *buffer, uint64_t ulSectorNumber, uint32_t ulSectorCount) {
 	sd_lock(this);    
-    int status = sd_read_blocks_unlocked(this, buffer, ulSectorNumber, ulSectorCount);
+	int status = sd_read_blocks_unlocked(this, buffer, ulSectorNumber, ulSectorCount);
 	sd_unlock(this);
-    return status;
+	return status;
 }
 
 static uint8_t sd_write_block(sd_t *this, const uint8_t *buffer, uint8_t token, uint32_t length) {
@@ -944,12 +984,8 @@ static uint8_t sd_write_block(sd_t *this, const uint8_t *buffer, uint8_t token, 
  */
 static int 
 sd_write_blocks_unlocked(sd_t *this, const uint8_t *buffer, uint64_t ulSectorNumber, uint32_t blockCnt) {
-	if (ulSectorNumber + blockCnt > this->sectors) {
+	if (ulSectorNumber + blockCnt > this->sectors) 
 		return SD_BLOCK_DEVICE_ERROR_PARAMETER;
-	}
-	if (!this->initialized) {
-		return SD_BLOCK_DEVICE_ERROR_NO_INIT;
-	}
 	if (this->m_Status & STA_NOINIT)
 		return SD_BLOCK_DEVICE_ERROR_PARAMETER;
 
@@ -993,10 +1029,11 @@ sd_write_blocks_unlocked(sd_t *this, const uint8_t *buffer, uint64_t ulSectorNum
 			response = sd_write_block(this, buffer, SPI_START_BLK_MUL_WRITE, _block_size);
 			if (response != SPI_DATA_ACCEPTED) {
 				DBG_PRINTF("Multiple Block Write failed: 0x%x\n", response);
+				status = SD_BLOCK_DEVICE_ERROR_WRITE;
 				break;
 			}
 			buffer += _block_size;
-		} while (--blockCnt);     // Receive all blocks of data
+		} while (--blockCnt);     // Send all blocks of data
 
 		/* In a Multiple Block write operation, the stop transmission will be done by
 		 * sending 'Stop Tran' token instead of 'Start Block' token at the beginning
@@ -1007,12 +1044,12 @@ sd_write_blocks_unlocked(sd_t *this, const uint8_t *buffer, uint64_t ulSectorNum
 	sd_deselect(this);
 	return status;
 }
-    
+	
 int sd_write_blocks(sd_t *this, const uint8_t *buffer, uint64_t ulSectorNumber, uint32_t blockCnt) {
 	sd_lock(this);
 	int status = sd_write_blocks_unlocked(this, buffer, ulSectorNumber, blockCnt);
 	sd_unlock(this);
-    return status;
+	return status;
 }
 
 /* [] END OF FILE */
