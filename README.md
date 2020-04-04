@@ -5,6 +5,12 @@ Features:
 * Supports multiple SD Cards
 * Supports multiple SPIs
 * Supports multiple SD Cards per SPI
+* Detects and responds to SD Card removal
+* Supports Real Time Clock for maintaining file and directory time stamps
+* Integrated with the FreeRTOS component in the Cypress Peripheral Driver Library (PDL)
+
+Limitations:
+* No support for multiple partitions on an SD Card
 
 Prerequisites:
 * PSoC® 6 BLE Pioneer Kit (CY8CKIT-062-BLE)
