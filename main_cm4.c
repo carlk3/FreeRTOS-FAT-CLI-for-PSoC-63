@@ -35,13 +35,17 @@ void my_assert_func (const char *file, int line, const char *func, const char *p
 #endif    
 }
 
+// void init_hardware(void);
+
 int main(void) {
 
 	__enable_irq(); /* Enable global interrupts. */
 
 	/* Place your initialization/startup code here (e.g. MyInst_Start()) */
+    
+//init_hardware();    
    
-    CLI_Start();  
+    CLI_Start();     
     register_fs_tests();        
     
     /* Initialize RTC */
@@ -50,8 +54,8 @@ int main(void) {
         printf("RTC initialization failed \r\n");
         CY_ASSERT(0); /* If RTC initialization failed */
     }        
-    PrintDateTime();
-
+    PrintDateTime();   
+    
     vTaskStartScheduler();  // Will never return
 	configASSERT(!"It will never get here");
 	Cy_SysLib_Halt(2);

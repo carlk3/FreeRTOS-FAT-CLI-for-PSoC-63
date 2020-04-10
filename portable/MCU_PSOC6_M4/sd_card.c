@@ -161,13 +161,6 @@
 // Hardware Configuration of the SPI and SD Card "objects"
 #include "hw_config.h"
 
-/* Disk Status Bits (DSTATUS) */
-enum {
-	STA_NOINIT = 0x01, /* Drive not initialized */
-	STA_NODISK = 0x02, /* No medium in the drive */
-	STA_PROTECT = 0x04 /* Write protected */
-};
-
 /* Control Tokens   */
 #define SPI_DATA_RESPONSE_MASK   (0x1F)
 #define SPI_DATA_ACCEPTED        (0x05)
@@ -461,12 +454,14 @@ bool sd_card_detect(sd_t *this) {
 		//The socket is now occupied
 		this->m_Status &= ~STA_NODISK;
 		this->card_type = CARD_UNKNOWN;
+	    Cy_GPIO_Write(LED9_PORT, LED9_NUM, 0) ;                
 		return true;
 	} else {
 		//The socket is now empty
 		this->m_Status |= (STA_NODISK | STA_NOINIT);
 		this->card_type = SDCARD_NONE;
 		DBG_PRINTF("No SD card detected!\n");
+	    Cy_GPIO_Write(LED9_PORT, LED9_NUM, 1) ;
 		return false;
 	}
 }
@@ -693,6 +688,7 @@ static void CardDetectTask(void *arg) {
 		// Returns: The value of the task’s notification value:
 		//  in this case, the SD card number
 		uint32_t card_num = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+        DBG_PRINTF("Task was notified.\n");        
 		sd_t *pSD = sd_get_by_num(card_num);
 		configASSERT(pSD);
 		FF_Disk_t *pxDisk = &pSD->ff_disk;
@@ -715,16 +711,19 @@ static void CardDetectTask(void *arg) {
 		}
 	}
 }
+
 static BaseType_t sd_card_detect_start(sd_t *this) {
 	BaseType_t rc = pdPASS;
 	/* Configure CM4+ CPU GPIO interrupt for Card Detect */
-	if ((this->card_detect_gpio_ISR) // Has an ISR defined
+	if ((this->card_detect_ISR) // Has an ISR defined
 	&& !(this->card_detect_task)) {  // Not already running
 		rc = xTaskCreate(CardDetectTask, "Card Detect", 256, 0, 2, &this->card_detect_task);
 		configASSERT(pdPASS == rc);
-		Cy_SysInt_Init(this->card_detect_gpio_port_int_cfg, this->card_detect_gpio_ISR); 
-		NVIC_ClearPendingIRQ(this->card_detect_gpio_port_int_cfg->intrSrc);
-		NVIC_EnableIRQ(this->card_detect_gpio_port_int_cfg->intrSrc);   
+		cy_en_sysint_status_t st = 
+			Cy_SysInt_Init(this->card_detect_int_cfg, this->card_detect_ISR); 
+		configASSERT(CY_SYSINT_SUCCESS  == st);
+		NVIC_ClearPendingIRQ(this->card_detect_int_cfg->intrSrc);
+		NVIC_EnableIRQ(this->card_detect_int_cfg->intrSrc);   
 	}
 	return rc;
 }
@@ -739,13 +738,6 @@ int sd_init(sd_t *this) {
 	sd_lock(this);
 	
 	sd_card_detect_start(this);
-	
-	//Initialize the member variables
-	this->card_type = SDCARD_NONE;
-//    m_Crc = true;
-//    m_LargeFrames = false;
-//    m_WriteValidation = true;
-	this->m_Status = STA_NOINIT;
 
 	//Make sure there's a card in the socket before proceeding
 	sd_card_detect(this);
@@ -762,6 +754,9 @@ int sd_init(sd_t *this) {
 		sd_unlock(this);
 		return this->m_Status;
 	}
+	//Initialize the member variables
+	this->card_type = SDCARD_NONE;
+	
 	int err = sd_initialise_card(this);
 	if (SD_BLOCK_DEVICE_ERROR_NONE != err) {
 		DBG_PRINTF("Failed to initialize card\n");
@@ -792,7 +787,7 @@ int sd_init(sd_t *this) {
 	return this->m_Status;
 }
 int sd_deinit(sd_t *this) {
-	this->m_Status = STA_NOINIT;
+	this->m_Status |= STA_NOINIT;
 	this->card_type = SDCARD_NONE;
 	//Return the disk status
 	return this->m_Status;
@@ -887,7 +882,7 @@ sd_read_blocks_unlocked(sd_t *this, uint8_t *buffer, uint64_t ulSectorNumber, ui
 
 	if (ulSectorNumber + blockCnt > this->sectors) 
 		return SD_BLOCK_DEVICE_ERROR_PARAMETER;
-	if (this->m_Status & STA_NOINIT)
+	if (this->m_Status & (STA_NOINIT | STA_NODISK))
 		return SD_BLOCK_DEVICE_ERROR_PARAMETER;
 
 	int status = SD_BLOCK_DEVICE_ERROR_NONE;
@@ -986,7 +981,7 @@ static int
 sd_write_blocks_unlocked(sd_t *this, const uint8_t *buffer, uint64_t ulSectorNumber, uint32_t blockCnt) {
 	if (ulSectorNumber + blockCnt > this->sectors) 
 		return SD_BLOCK_DEVICE_ERROR_PARAMETER;
-	if (this->m_Status & STA_NOINIT)
+	if (this->m_Status & (STA_NOINIT | STA_NODISK))
 		return SD_BLOCK_DEVICE_ERROR_PARAMETER;
 
 	int status = SD_BLOCK_DEVICE_ERROR_NONE;

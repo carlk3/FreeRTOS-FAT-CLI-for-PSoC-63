@@ -41,7 +41,7 @@ which SPI it is driven by, and how it is wired.
 void SPI_1_handle_event(uint32_t event);
 
 // Card Detect Port Interrupt Service Routines
-void gpio_port12_ISR();
+void Card_Detect_ISR();
 
 // Hardware Configuration of SPI "objects"
 // Note: multiple SD cards can be driven by one SPI if they use different slave selects.
@@ -71,11 +71,11 @@ static sd_t sd_cards[] = { 	// One for each SD card
 		.ss = SPI_1_SPI_SLAVE_SELECT0, // The SPI slave select line for this SD card
 		.card_detect_gpio_port = Card_Detect_PORT, // Card detect
 		.card_detect_gpio_num = Card_Detect_NUM, // Card detect
-		.card_detect_gpio_port_int_cfg = &GPIO_Port_12_Interrupt_cfg,
-		.card_detect_gpio_ISR = gpio_port12_ISR,
+		.card_detect_int_cfg = &Card_Detect_Interrupt_cfg,
+		.card_detect_ISR = Card_Detect_ISR,
 		.card_detect_task = 0,
 		.card_detected_true = 0, // truth (card is present) is 0 
-		.m_Status = 0, 
+		.m_Status = STA_NOINIT, 
 		.sectors = 0, 
 		.card_type = 0, 
 		.mutex = 0,
@@ -131,24 +131,21 @@ void SPI_1_handle_event(uint32_t event) {
 	}
 }
 
-void gpio_port12_ISR() {
-	uint32_t int_status = Cy_GPIO_GetInterruptStatus(Card_Detect_PORT, Card_Detect_NUM);
-	/* Clear pin interrupt logic. Required to detect next interrupt */    
-	Cy_GPIO_ClearInterrupt(Card_Detect_PORT, Card_Detect_NUM);            
-	/* Determine if one pin in the port generated interrupt. */
-	if (int_status == CY_GPIO_INTR_STATUS_MASK) {
-		if (sd_cards[0].card_detect_task) {
-			BaseType_t xHigherPriorityTaskWoken;
-			// BaseType_t xTaskNotify( TaskHandle_t xTaskToNotify,
-			//                         uint32_t ulValue,
-			//                         eNotifyAction eAction );    
-			// Here, the ulValue is the card number.
-			BaseType_t rc = xTaskNotifyFromISR(sd_cards[0].card_detect_task, 0, 
-				eSetValueWithOverwrite, &xHigherPriorityTaskWoken);
-			configASSERT(pdPASS == rc);
-			/* Force a context switch if xHigherPriorityTaskWoken is now set to pdTRUE. */
-			portYIELD_FROM_ISR( xHigherPriorityTaskWoken );    
-		}
+void Card_Detect_ISR() {
+	/* Clears the triggered pin interrupt */
+	NVIC_ClearPendingIRQ(Card_Detect_Interrupt_cfg.intrSrc);  
+	
+	if (sd_cards[0].card_detect_task) {
+		BaseType_t xHigherPriorityTaskWoken;
+		// BaseType_t xTaskNotify( TaskHandle_t xTaskToNotify,
+		//                         uint32_t ulValue,
+		//                         eNotifyAction eAction );    
+		// Here, the ulValue is the card number.
+		BaseType_t rc = xTaskNotifyFromISR(sd_cards[0].card_detect_task, 0, 
+			eSetValueWithOverwrite, &xHigherPriorityTaskWoken);
+		configASSERT(pdPASS == rc);
+		/* Force a context switch if xHigherPriorityTaskWoken is now set to pdTRUE. */
+		portYIELD_FROM_ISR( xHigherPriorityTaskWoken );    
 	}
 }
 

@@ -41,7 +41,7 @@
  *----------------------------------------------------------*/
 
 #include "syslib/cy_syslib.h"
-//#include <assert.h>    
+
 void my_assert_func (const char *file, int line, const char *func, const char *pred);   
 
 //#warning This is a template. Modify it according to your project and remove this line. 
@@ -51,7 +51,7 @@ void my_assert_func (const char *file, int line, const char *func, const char *p
 #define configUSE_TICKLESS_IDLE                 0
 #define configCPU_CLOCK_HZ                      SystemCoreClock
 #define configTICK_RATE_HZ                      1000u
-#define configMAX_PRIORITIES                    20
+#define configMAX_PRIORITIES                    7
 #define configMINIMAL_STACK_SIZE                128
 #define configMAX_TASK_NAME_LEN                 16
 #define configUSE_16_BIT_TICKS                  0
@@ -62,7 +62,7 @@ void my_assert_func (const char *file, int line, const char *func, const char *p
 #define configUSE_COUNTING_SEMAPHORES           1
 #define configQUEUE_REGISTRY_SIZE               10
 #define configUSE_QUEUE_SETS                    0
-#define configUSE_TIME_SLICING                  1
+#define configUSE_TIME_SLICING                  0
 #define configUSE_NEWLIB_REENTRANT              0
 #define configENABLE_BACKWARD_COMPATIBILITY     0
 #define configNUM_THREAD_LOCAL_STORAGE_POINTERS 5
@@ -74,10 +74,10 @@ void my_assert_func (const char *file, int line, const char *func, const char *p
 #define configAPPLICATION_ALLOCATED_HEAP        0
 
 /* Hook function related definitions. */
-#define configUSE_IDLE_HOOK                     1
+#define configUSE_IDLE_HOOK                     0
 #define configUSE_TICK_HOOK                     0
 #define configCHECK_FOR_STACK_OVERFLOW          2
-#define configUSE_MALLOC_FAILED_HOOK            1
+#define configUSE_MALLOC_FAILED_HOOK            0
 #define configUSE_DAEMON_TASK_STARTUP_HOOK      0
 
 /* Run time and task stats gathering related definitions. */
@@ -91,11 +91,7 @@ void my_assert_func (const char *file, int line, const char *func, const char *p
 
 /* Software timer related definitions. */
 #define configUSE_TIMERS                        1
-//#define configTIMER_TASK_PRIORITY               3
-#define configTIMER_TASK_PRIORITY               (configMAX_PRIORITIES - 1)  
-                                                    /* Priority changed since timers
-                                                    are used by high priority 
-                                                    tasks in this project */
+#define configTIMER_TASK_PRIORITY               3
 #define configTIMER_QUEUE_LENGTH                10
 #define configTIMER_TASK_STACK_DEPTH            configMINIMAL_STACK_SIZE
 
@@ -148,17 +144,13 @@ Reference.
 */
 
 /* Put KERNEL_INTERRUPT_PRIORITY in top __NVIC_PRIO_BITS bits of CM4 register */
-#define configKERNEL_INTERRUPT_PRIORITY         0xFF
+#define configKERNEL_INTERRUPT_PRIORITY         0xFF // 111b 
 /* 
 Put MAX_SYSCALL_INTERRUPT_PRIORITY in top __NVIC_PRIO_BITS bits of CM4 register
 NOTE For IAR compiler make sure that changes of this macro is reflected in  
 file portable\IAR\CM4F\portasm.s in PendSV_Handler: routine
 */
-//#define configMAX_SYSCALL_INTERRUPT_PRIORITY    0x3F
-#define configMAX_SYSCALL_INTERRUPT_PRIORITY    0x2F    /* Changed this value 
-                                                           to safely include 
-                                                           BLE IPC interrupts */ 
-
+#define configMAX_SYSCALL_INTERRUPT_PRIORITY    0x3F  // 001b 
 /* configMAX_API_CALL_INTERRUPT_PRIORITY is a new name for configMAX_SYSCALL_INTERRUPT_PRIORITY
  that is used by newer ports only. The two are equivalent. */
 #define configMAX_API_CALL_INTERRUPT_PRIORITY 	configMAX_SYSCALL_INTERRUPT_PRIORITY
@@ -205,15 +197,6 @@ each implementation - which would waste RAM.  In this case, there is only one
 command interpreter running, and it has its own local output buffer, so the
 global buffer is just set to be one byte long as it is not used and should not
 take up unnecessary RAM. */
-#define configCOMMAND_INT_MAX_OUTPUT_SIZE 1   
+#define configCOMMAND_INT_MAX_OUTPUT_SIZE 1      
     
-//#define configSD_DETECT_PIN UserSDCrd_Detect_NUM
-//#define configSD_DETECT_GPIO_PORT UserSDCrd_Detect_PORT
-
-/* Definitions that map the FreeRTOS port interrupt handlers to their CMSIS
-standard names - or at least those used in the unmodified vector table. */
-#define vPortSVCHandler     SVC_Handler
-#define xPortPendSVHandler  PendSV_Handler
-#define xPortSysTickHandler SysTick_Handler
-
 #endif /* FREERTOS_CONFIG_H */

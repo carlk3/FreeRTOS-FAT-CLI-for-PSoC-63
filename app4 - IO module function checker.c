@@ -30,13 +30,6 @@ typedef enum {
 	RES_PARERR		/* 4: Invalid Parameter */
 } DRESULT;
 
-/* Disk Status Bits (DSTATUS) */
-enum {
-	STA_NOINIT = 0x01, /* Drive not initialized */
-	STA_NODISK = 0x02, /* No medium in the drive */
-	STA_PROTECT = 0x04 /* Write protected */
-};
-
 #define FF_MIN_SS		512
 #define FF_MAX_SS		512
 

@@ -7,6 +7,7 @@
   <Group key="DWRInstGuidMapping">
     <Group key="Interrupt">
       <Data key="851d1dda-6d13-4230-b006-f54035c660fb/bd067f71-3970-4ac5-b329-954cefcd6d5b" value="SPI_1_SCB_IRQ" />
+      <Data key="b5f67179-5ee3-4b03-8e10-0d59c2f7c109" value="Card_Detect_Interrupt" />
       <Data key="f5af4fca-2106-487e-958f-8f1b9fbb1a88/9260d369-b684-4310-b925-f618d77b89d7" value="UART_1_SCB_IRQ" />
     </Group>
     <Group key="Pin">
@@ -19,11 +20,19 @@
       <Data key="4489fdd9-74eb-453d-addb-44b0b6d87b07" value="Pin8_7" />
       <Data key="a61270bc-07ec-447d-ac9e-34cfe85c30e9" value="RED" />
       <Data key="b3f992fb-c631-4096-843c-494dbfc0190f" value="Pin13_6" />
+      <Data key="b2998b20-5afc-469b-9e3f-ddf3cb1daec1" value="SW2" />
       <Data key="f5af4fca-2106-487e-958f-8f1b9fbb1a88/65f3af6c-759b-4ccb-8c66-5c95ba1f5f4f" value="UART_1_tx" />
       <Data key="f5af4fca-2106-487e-958f-8f1b9fbb1a88/b7e8018e-1ef7-49c0-b5a5-61641a03e31c" value="UART_1_rx" />
     </Group>
   </Group>
   <Group key="Interrupt">
+    <Group key="b5f67179-5ee3-4b03-8e10-0d59c2f7c109">
+      <Group key="CortexM4">
+        <Data key="Assigned" value="True" />
+        <Data key="Priority" value="7" />
+        <Data key="Vector" value="-1" />
+      </Group>
+    </Group>
     <Group key="f5af4fca-2106-487e-958f-8f1b9fbb1a88/9260d369-b684-4310-b925-f618d77b89d7">
       <Group key="CortexM4">
         <Data key="Assigned" value="True" />
@@ -659,6 +668,11 @@
     <Group key="b3f992fb-c631-4096-843c-494dbfc0190f">
       <Group key="0">
         <Data key="Port Format" value="13,6" />
+      </Group>
+    </Group>
+    <Group key="b2998b20-5afc-469b-9e3f-ddf3cb1daec1">
+      <Group key="0">
+        <Data key="Port Format" value="0,4" />
       </Group>
     </Group>
     <Group key="f5af4fca-2106-487e-958f-8f1b9fbb1a88/65f3af6c-759b-4ccb-8c66-5c95ba1f5f4f">

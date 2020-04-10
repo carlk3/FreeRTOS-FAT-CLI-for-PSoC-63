@@ -32,8 +32,8 @@ typedef struct {
 	GPIO_PRT_Type * const card_detect_gpio_port; // Card detect
 	const uint32_t card_detect_gpio_num; // Card detect
 	const uint32_t card_detected_true; // 0 for full-size SD, 1 for micro
-	const cy_stc_sysint_t *card_detect_gpio_port_int_cfg; // Port Interrupt configuration structure
-	const cy_israddress card_detect_gpio_ISR; //Address of the ISR for the port interrupt;
+	const cy_stc_sysint_t *card_detect_int_cfg; // Port Interrupt configuration structure
+	const cy_israddress card_detect_ISR; //Address of the ISR for the port interrupt;
 	  // can be NULL if ISR is shared over multiple cards
 	TaskHandle_t card_detect_task; // handles card detect ISRs
 	int m_Status; // Card status
@@ -55,6 +55,13 @@ typedef struct {
 #define SD_BLOCK_DEVICE_ERROR_CRC                -5009  /*!< CRC error */
 #define SD_BLOCK_DEVICE_ERROR_ERASE              -5010  /*!< Erase error: reset/sequence */
 #define SD_BLOCK_DEVICE_ERROR_WRITE              -5011  /*!< SPI Write error: !SPI_DATA_ACCEPTED */
+
+/* Disk Status Bits (DSTATUS) */
+enum {
+	STA_NOINIT = 0x01, /* Drive not initialized */
+	STA_NODISK = 0x02, /* No medium in the drive */
+	STA_PROTECT = 0x04 /* Write protected */
+};
 
 int sd_init(sd_t *this);
 int sd_deinit(sd_t *this);
