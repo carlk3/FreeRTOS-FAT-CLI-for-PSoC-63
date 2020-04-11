@@ -41,6 +41,29 @@
 #define BYTES_PER_KB			( 1024ull )
 #define SECTORS_PER_KB			( BYTES_PER_KB / 512ull )
 
+static FF_Disk_t disks[] = 
+{
+	{ // struct xFFDisk
+		{ // xStatus
+			.bIsInitialised = 0,
+			.bIsMounted = 0,
+			.spare0 = 0,
+			.bPartitionNumber = 0,
+			.spare1 = 0
+		},
+/* The pvTag member of the FF_Disk_t structure allows the structure to be
+ extended to also include media specific parameters.  */                
+		.pvTag = NULL, // Pointer to enclosing sd_t
+		.pxIOManager = NULL,
+		.ulNumberOfSectors = 0,
+		.fnFlushApplicationHook = NULL,
+		.ulSignature = 0
+	}
+};
+static FF_Disk_t *pDisks[] = {
+  &disks[0]  
+};
+
 /* A function to write sectors to the device. */
 static int32_t prvWrite(uint8_t *pucSource, /* Source of data to be written. */
 		uint32_t ulSectorNumber, /* The first sector being written to. */
@@ -75,7 +98,7 @@ BaseType_t FF_SDDiskDetect(FF_Disk_t *pxDisk) {
 	return sd_card_detect(pxDisk->pvTag);
 }
 
-static bool disk_init(sd_t *pSD) {
+static bool disk_init(sd_card_t *pSD) {
 	FF_Error_t xError = 0;
 	FF_CreationParameters_t xParameters;
 	const uint32_t xIOManagerCacheSize = 4 * SECTOR_SIZE;
@@ -89,10 +112,14 @@ static bool disk_init(sd_t *pSD) {
 		// Couldn't init
 		return false;
 	}
+    
+    pSD->ff_disks = pDisks;
+    pSD->ff_disk_count = sizeof(disks) / sizeof(disks[0]);
+    disks[0].pvTag = pSD;
 
 	/* The number of sectors is recorded for bounds checking in the read and
 	 write functions. */
-	pSD->ff_disk.ulNumberOfSectors = pSD->sectors;
+	disks[0].ulNumberOfSectors = pSD->sectors;
 
 	/* Create the IO manager that will be used to control the disk –
 	 the FF_CreationParameters_t structure completed with the required
@@ -103,34 +130,34 @@ static bool disk_init(sd_t *pSD) {
 	xParameters.ulSectorSize = SECTOR_SIZE;
 	xParameters.fnWriteBlocks = prvWrite;
 	xParameters.fnReadBlocks = prvRead;
-	xParameters.pxDisk = &pSD->ff_disk;
+	xParameters.pxDisk = pSD->ff_disks[0];
 	xParameters.pvSemaphore = (void *) xSemaphoreCreateRecursiveMutex();
 	xParameters.xBlockDeviceIsReentrant = pdTRUE;
 
-	pSD->ff_disk.pxIOManager = FF_CreateIOManger(&xParameters, &xError);
+	disks[0].pxIOManager = FF_CreateIOManger(&xParameters, &xError);
 
-	if ((pSD->ff_disk.pxIOManager != NULL) && (FF_isERR(xError) == pdFALSE)) {
+	if ((disks[0].pxIOManager != NULL) && (FF_isERR(xError) == pdFALSE)) {
 		/* Record that the disk has been initialised. */
-		pSD->ff_disk.xStatus.bIsInitialised = pdTRUE;
+		disks[0].xStatus.bIsInitialised = pdTRUE;
 	} else {
 		/* The disk structure was allocated, but the disk’s IO manager could
 		 not be allocated, so free the disk again. */
-		FF_SDDiskDelete(&pSD->ff_disk);
+		FF_SDDiskDelete(pSD->ff_disks[0]);
 		FF_PRINTF("FF_SDDiskInit: FF_CreateIOManger: %s\n", (const char *) FF_GetErrMessage(xError));
 		configASSERT(!"disk's IO manager could not be allocated!");
-		pSD->ff_disk.xStatus.bIsInitialised = pdFALSE;
+		disks[0].xStatus.bIsInitialised = pdFALSE;
 	}    
 	return true;
 }
 
 FF_Disk_t *FF_SDDiskInit(const char *pcName) {
-	sd_t *pSD = sd_get_by_name(pcName);
+	sd_card_t *pSD = sd_get_by_name(pcName);
 	if (!pSD) {
 		FF_PRINTF("FF_SDDiskInit: unknown name %s\n", pcName);
 		return NULL;
 	}
 	if (disk_init(pSD))
-		return &pSD->ff_disk;
+		return pSD->ff_disks[0];
 	else 
 		return NULL;
 }
@@ -262,7 +289,7 @@ BaseType_t FF_SDDiskFormat( FF_Disk_t *pxDisk, BaseType_t aPart ) {
 
 /* Return non-zero if an SD-card is detected in a given slot. */
 BaseType_t FF_SDDiskInserted( BaseType_t xDriveNr ) {
-	sd_t *pSD = sd_get_by_num(xDriveNr);
+	sd_card_t *pSD = sd_get_by_num(xDriveNr);
 	if (!pSD) return false;
 	return sd_card_detect(pSD);
 }

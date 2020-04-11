@@ -199,4 +199,10 @@ global buffer is just set to be one byte long as it is not used and should not
 take up unnecessary RAM. */
 #define configCOMMAND_INT_MAX_OUTPUT_SIZE 1      
     
+/* Definitions that map the FreeRTOS port interrupt handlers to their CMSIS
+standard names - or at least those used in the unmodified vector table. */
+#define vPortSVCHandler     SVC_Handler
+#define xPortPendSVHandler  PendSV_Handler
+#define xPortSysTickHandler SysTick_Handler
+
 #endif /* FREERTOS_CONFIG_H */

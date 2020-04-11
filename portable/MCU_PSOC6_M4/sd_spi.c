@@ -24,7 +24,7 @@
 
 // Lock the SPI and set SS appropriately for this SD Card
 // Note: The Cy_SCB_SPI_SetActiveSlaveSelect really only needs to be done here if multiple SDs are on the same SPI.
-void sd_spi_acquire(sd_t *this) {
+void sd_spi_acquire(sd_card_t *this) {
 	xSemaphoreTakeRecursive(this->spi->mutex, portMAX_DELAY);
 	this->spi->owner = xTaskGetCurrentTaskHandle();
 
@@ -38,12 +38,12 @@ void sd_spi_acquire(sd_t *this) {
 //    while (Cy_SCB_SPI_IsBusBusy(this->spi->base));
 	Cy_SCB_SPI_SetActiveSlaveSelect(this->spi->base, this->ss);
 }
-void sd_spi_release(sd_t *this) {
+void sd_spi_release(sd_card_t *this) {
 	this->spi->owner = 0;
 	xSemaphoreGiveRecursive(this->spi->mutex);
 }
 
-void sd_spi_go_high_frequency(sd_t *this) {
+void sd_spi_go_high_frequency(sd_card_t *this) {
 	// 100 kHz:
 	// In TopDesign.cysch, initial clock setting is
 	// 	 Cy_SysClk_PeriphSetDivider(CY_SYSCLK_DIV_8_BIT, 1u, 124u);
@@ -85,7 +85,7 @@ void sd_spi_go_high_frequency(sd_t *this) {
 
 	sd_spi_release(this);
 }
-void sd_spi_go_low_frequency(sd_t *this) {
+void sd_spi_go_low_frequency(sd_card_t *this) {
 	// In TopDesign.cysch, initial clock setting (for 100 kHz) is
 	// 	 Cy_SysClk_PeriphSetDivider(CY_SYSCLK_DIV_8_BIT, 1u, 124u);
 	// as seen in cyfitter_cfg.c.
@@ -121,7 +121,7 @@ void sd_spi_go_low_frequency(sd_t *this) {
 //   If the data that will be received is not important, pass NULL as rx.
 //   If the data that will be transmitted is not important,
 //     pass NULL as tx and then the CY_SCB_SPI_DEFAULT_TX is sent out as each data element.
-bool sd_spi_transfer(sd_t *this, const uint8_t *tx, uint8_t *rx, size_t length) {
+bool sd_spi_transfer(sd_card_t *this, const uint8_t *tx, uint8_t *rx, size_t length) {
 	cy_en_scb_spi_status_t errorStatus;
 	uint32_t masterStatus;
 	BaseType_t rc;
@@ -186,7 +186,7 @@ bool sd_spi_transfer(sd_t *this, const uint8_t *tx, uint8_t *rx, size_t length) 
 	return true;
 }
 
-uint8_t sd_spi_write(sd_t *this, const uint8_t value) {
+uint8_t sd_spi_write(sd_card_t *this, const uint8_t value) {
 	uint8_t received = 0xFF;
 
 	// static bool sd_spi_transfer(sd_t *this, const uint8_t *tx, uint8_t *rx, size_t length)
@@ -196,7 +196,7 @@ uint8_t sd_spi_write(sd_t *this, const uint8_t value) {
 	return received;
 }
 
-bool sd_spi_write_block(sd_t *this, const uint8_t *tx_buffer, size_t length) {
+bool sd_spi_write_block(sd_card_t *this, const uint8_t *tx_buffer, size_t length) {
 
 	// bool spi_transfer(const uint8_t *tx, uint8_t *rx, size_t length)
 	bool ret = sd_spi_transfer(this, tx_buffer, NULL, length);

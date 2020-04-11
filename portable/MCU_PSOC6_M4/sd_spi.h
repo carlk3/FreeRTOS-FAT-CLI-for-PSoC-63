@@ -18,13 +18,13 @@
     
 #define SPI_FILL_CHAR         (0xFF)  
 
-bool sd_spi_transfer(sd_t *this, const uint8_t *tx, uint8_t *rx, size_t length);
-uint8_t sd_spi_write(sd_t *this, const uint8_t value);
-bool sd_spi_write_block(sd_t *this, const uint8_t *tx_buffer, size_t length);
-void sd_spi_acquire(sd_t *this);
-void sd_spi_release(sd_t *this);
-void sd_spi_go_low_frequency(sd_t *this);
-void sd_spi_go_high_frequency(sd_t *this);
+bool sd_spi_transfer(sd_card_t *this, const uint8_t *tx, uint8_t *rx, size_t length);
+uint8_t sd_spi_write(sd_card_t *this, const uint8_t value);
+bool sd_spi_write_block(sd_card_t *this, const uint8_t *tx_buffer, size_t length);
+void sd_spi_acquire(sd_card_t *this);
+void sd_spi_release(sd_card_t *this);
+void sd_spi_go_low_frequency(sd_card_t *this);
+void sd_spi_go_high_frequency(sd_card_t *this);
 
 #endif
 

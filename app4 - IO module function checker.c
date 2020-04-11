@@ -65,7 +65,7 @@ int test_diskio (
 )
 {
 //    BYTE pdrv = 0;  /* Physical drive number to be checked (all data on the drive will be lost) */   
-    sd_t *pdrv = 0;
+    sd_card_t *pdrv = 0;
     UINT n, cc, ns;
     DWORD sz_drv, lba, lba2, sz_eblk, pns = 1;
     WORD sz_sect;

@@ -12,6 +12,7 @@
     </Group>
     <Group key="Pin">
       <Data key="2a9824da-3474-4e0c-8497-b9dc1e58b248" value="LED9" />
+      <Data key="4b7c5080-6c79-467d-9e7a-0d4bc4c1f6ac" value="Card_Detect" />
       <Data key="4cca878b-77b5-471d-8aeb-ad6925202455" value="Card_Detect" />
       <Data key="851d1dda-6d13-4230-b006-f54035c660fb/6ab54762-7779-4044-8f78-8f0c3cc17648" value="SPI_1_mosi_m" />
       <Data key="851d1dda-6d13-4230-b006-f54035c660fb/36be6e88-4a0d-41df-a2e0-06e872a3b6e7" value="SPI_1_ss0_m" />
@@ -629,6 +630,11 @@
     <Group key="2a9824da-3474-4e0c-8497-b9dc1e58b248">
       <Group key="0">
         <Data key="Port Format" value="13,7" />
+      </Group>
+    </Group>
+    <Group key="4b7c5080-6c79-467d-9e7a-0d4bc4c1f6ac">
+      <Group key="0">
+        <Data key="Port Format" value="12,5" />
       </Group>
     </Group>
     <Group key="4cca878b-77b5-471d-8aeb-ad6925202455">

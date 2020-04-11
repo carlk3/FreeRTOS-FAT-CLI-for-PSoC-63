@@ -40,8 +40,9 @@ typedef struct {
 	uint64_t sectors;   // Assigned dynamically
 	int card_type;  // Assigned dynamically
 	SemaphoreHandle_t mutex; // Guard semaphore, assigned dynamically
-	FF_Disk_t ff_disk;
-} sd_t;
+    size_t ff_disk_count;
+	FF_Disk_t **ff_disks; // FreeRTOS+FAT "disks" using this device
+} sd_card_t;
 
 #define SD_BLOCK_DEVICE_ERROR_NONE                   0
 #define SD_BLOCK_DEVICE_ERROR_WOULD_BLOCK        -5001  /*!< operation would block */
@@ -63,12 +64,12 @@ enum {
 	STA_PROTECT = 0x04 /* Write protected */
 };
 
-int sd_init(sd_t *this);
-int sd_deinit(sd_t *this);
-int sd_write_blocks(sd_t *this, const uint8_t *buffer, uint64_t ulSectorNumber, uint32_t blockCnt);
-int sd_read_blocks(sd_t *this, uint8_t *buffer, uint64_t ulSectorNumber, uint32_t ulSectorCount);
-bool sd_card_detect(sd_t *this);
-uint64_t sd_sectors(sd_t *this);
+int sd_init(sd_card_t *this);
+int sd_deinit(sd_card_t *this);
+int sd_write_blocks(sd_card_t *this, const uint8_t *buffer, uint64_t ulSectorNumber, uint32_t blockCnt);
+int sd_read_blocks(sd_card_t *this, uint8_t *buffer, uint64_t ulSectorNumber, uint32_t ulSectorCount);
+bool sd_card_detect(sd_card_t *this);
+uint64_t sd_sectors(sd_card_t *this);
 
 #endif
 /* [] END OF FILE */

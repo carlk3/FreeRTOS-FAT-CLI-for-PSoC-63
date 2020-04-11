@@ -254,7 +254,7 @@ typedef enum {
 
 #define SPI_CMD(x) (0x40 | (x & 0x3f))
 
-static uint8_t sd_cmd_spi(sd_t *this, cmdSupported cmd, uint32_t arg) {
+static uint8_t sd_cmd_spi(sd_card_t *this, cmdSupported cmd, uint32_t arg) {
 	uint8_t response;
 	char cmdPacket[PACKET_SIZE];
 
@@ -307,7 +307,7 @@ static uint8_t sd_cmd_spi(sd_t *this, cmdSupported cmd, uint32_t arg) {
 	return response;
 }
 
-static bool sd_wait_ready(sd_t *this, int timeout) {
+static bool sd_wait_ready(sd_card_t *this, int timeout) {
 	char resp;
 
 	//Keep sending dummy clocks with DI held high until the card releases the DO line
@@ -325,18 +325,18 @@ static bool sd_wait_ready(sd_t *this, int timeout) {
 	return (resp > 0x00);
 }
 
-static void sd_select(sd_t *this) {
+static void sd_select(sd_card_t *this) {
 	sd_spi_write(this, 0xFF);
 	sd_spi_acquire(this);
 }
-static void sd_deselect(sd_t *this) {
+static void sd_deselect(sd_card_t *this) {
 	sd_spi_release(this);
 	sd_spi_write(this, 0xFF);
 }
 
 #define SD_COMMAND_TIMEOUT 5000   /*!< Timeout in ms for response */
 
-static int sd_cmd(sd_t *this, cmdSupported cmd, uint32_t arg, bool isAcmd, uint32_t *resp) {
+static int sd_cmd(sd_card_t *this, cmdSupported cmd, uint32_t arg, bool isAcmd, uint32_t *resp) {
 	int32_t status = SD_BLOCK_DEVICE_ERROR_NONE;
 	uint32_t response;
 
@@ -446,7 +446,7 @@ static int sd_cmd(sd_t *this, cmdSupported cmd, uint32_t arg, bool isAcmd, uint3
 }
 
 /* Return non-zero if the SD-card is present. */
-bool sd_card_detect(sd_t *this) {
+bool sd_card_detect(sd_card_t *this) {
 
 	/*!< Check GPIO to detect SD */
 	if (Cy_GPIO_Read(this->card_detect_gpio_port, this->card_detect_gpio_num)
@@ -468,7 +468,7 @@ bool sd_card_detect(sd_t *this) {
 #define SPI_FILL_CHAR         (0xFF)
 #define SD_CMD0_GO_IDLE_STATE_RETRIES     5      /*!< Number of retries for sending CMDO */
 
-static uint32_t sd_go_idle_state(sd_t *this) {
+static uint32_t sd_go_idle_state(sd_card_t *this) {
 	uint32_t response;
 
 	/* Reseting the MCU SPI master may not reset the on-board SDCard, in which
@@ -489,7 +489,7 @@ static uint32_t sd_go_idle_state(sd_t *this) {
 /* R7 response pattern for CMD8 */
 #define CMD8_PATTERN             (0xAA)
 
-static int sd_cmd8(sd_t *this) {
+static int sd_cmd8(sd_card_t *this) {
 	uint32_t arg = (CMD8_PATTERN << 0);         // [7:0]check pattern
 	uint32_t response = 0;
 	int32_t status = SD_BLOCK_DEVICE_ERROR_NONE;
@@ -510,7 +510,7 @@ static int sd_cmd8(sd_t *this) {
 	return status;
 }
 
-static int sd_initialise_card(sd_t *this) {
+static int sd_initialise_card(sd_card_t *this) {
 	int32_t status = SD_BLOCK_DEVICE_ERROR_NONE;
 	uint32_t response, arg;
 
@@ -617,9 +617,9 @@ static uint32_t ext_bits(unsigned char *data, int msb, int lsb) {
 	return bits;
 }
 
-static int sd_read_bytes(sd_t *this, uint8_t *buffer, uint32_t length);
+static int sd_read_bytes(sd_card_t *this, uint8_t *buffer, uint32_t length);
 
-uint64_t sd_sectors(sd_t *this) {
+uint64_t sd_sectors(sd_card_t *this) {
 	uint32_t c_size, c_size_mult, read_bl_len;
 	uint32_t block_len, mult, blocknr;
 	uint32_t hc_c_size;
@@ -671,10 +671,10 @@ uint64_t sd_sectors(sd_t *this) {
 }
 
 // An SD card can only do one thing at a time
-static void sd_lock(sd_t *this) {
+static void sd_lock(sd_card_t *this) {
 	xSemaphoreTakeRecursive(this->mutex, portMAX_DELAY);
 }
-static void sd_unlock(sd_t *this) {
+static void sd_unlock(sd_card_t *this) {
 	xSemaphoreGiveRecursive(this->mutex);
 }
 
@@ -688,35 +688,38 @@ static void CardDetectTask(void *arg) {
 		//  in this case, the SD card number
 		uint32_t card_num = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 //		DBG_PRINTF("Task was notified.\n");        
-		sd_t *pSD = sd_get_by_num(card_num);
+		sd_card_t *pSD = sd_get_by_num(card_num);
 		configASSERT(pSD);
-		FF_Disk_t *pxDisk = &pSD->ff_disk;
-		if (pxDisk) {
-			if (pxDisk->xStatus.bIsInitialised) {
-				sd_lock(pSD);                        
-				if (!sd_card_detect(pSD)) {
-					if (pxDisk->xStatus.bIsMounted) {
-						FF_PRINTF("Invalidating %s\n", pSD->pcName);     
-						FF_Invalidate(pxDisk->pxIOManager);                                
-						FF_PRINTF("Unmounting %s\n", pSD->pcName);                                     
-						FF_Unmount(pxDisk);
-						pxDisk->xStatus.bIsMounted = pdFALSE;    
-						Cy_GPIO_Write(LED8_PORT, LED8_NUM, 1) ;   
-					}
-					if (pxDisk->xStatus.bIsInitialised) {
-						if (pxDisk->pxIOManager)
-							FF_DeleteIOManager(pxDisk->pxIOManager);
-						pxDisk->xStatus.bIsInitialised = pdFALSE;
-					}
-					sd_deinit(pSD);                                                    
-				}  
-			}
-			sd_unlock(pSD);                
-		}
+        size_t i;
+        for (i = 0; i < pSD->ff_disk_count; ++i) {
+        	FF_Disk_t *pxDisk = pSD->ff_disks[i];
+    		if (pxDisk) {
+    			if (pxDisk->xStatus.bIsInitialised) {
+    				sd_lock(pSD);                        
+    				if (!sd_card_detect(pSD)) {
+    					if (pxDisk->xStatus.bIsMounted) {
+    						FF_PRINTF("Invalidating %s\n", pSD->pcName);     
+    						FF_Invalidate(pxDisk->pxIOManager);                                
+    						FF_PRINTF("Unmounting %s\n", pSD->pcName);                                     
+    						FF_Unmount(pxDisk);
+    						pxDisk->xStatus.bIsMounted = pdFALSE;    
+    						Cy_GPIO_Write(LED8_PORT, LED8_NUM, 1) ;   
+    					}
+    					if (pxDisk->xStatus.bIsInitialised) {
+    						if (pxDisk->pxIOManager)
+    							FF_DeleteIOManager(pxDisk->pxIOManager);
+    						pxDisk->xStatus.bIsInitialised = pdFALSE;
+    					}
+    					sd_deinit(pSD);                                                    
+    				}  
+    			}
+    			sd_unlock(pSD);                
+    		}
+        }
 	}
 }
 
-static BaseType_t sd_card_detect_start(sd_t *this) {
+static BaseType_t sd_card_detect_start(sd_card_t *this) {
 	BaseType_t rc = pdPASS;
 	/* Configure CM4+ CPU GPIO interrupt for Card Detect */
 	if ((this->card_detect_ISR) // Has an ISR defined
@@ -732,7 +735,7 @@ static BaseType_t sd_card_detect_start(sd_t *this) {
 	return rc;
 }
 
-int sd_init(sd_t *this) {
+int sd_init(sd_card_t *this) {
 //	STA_NOINIT = 0x01, /* Drive not initialized */
 //	STA_NODISK = 0x02, /* No medium in the drive */
 //	STA_PROTECT = 0x04 /* Write protected */
@@ -790,7 +793,7 @@ int sd_init(sd_t *this) {
 	//Return the disk status
 	return this->m_Status;
 }
-int sd_deinit(sd_t *this) {
+int sd_deinit(sd_card_t *this) {
 	this->m_Status |= STA_NOINIT;
 	this->card_type = SDCARD_NONE;
 	//Return the disk status
@@ -799,7 +802,7 @@ int sd_deinit(sd_t *this) {
 
 
 // SPI function to wait till chip is ready and sends start token
-static bool sd_wait_token(sd_t *this, uint8_t token) {    
+static bool sd_wait_token(sd_card_t *this, uint8_t token) {    
 	TickType_t xStart = xTaskGetTickCount();
 	do {
 		if (token == sd_spi_write(this, SPI_FILL_CHAR)) {
@@ -812,7 +815,7 @@ static bool sd_wait_token(sd_t *this, uint8_t token) {
 
 #define SPI_START_BLOCK          (0xFE)      /*!< For Single Block Read/Write and Multiple Block Read */
 
-static int sd_read_bytes(sd_t *this, uint8_t *buffer, uint32_t length) {
+static int sd_read_bytes(sd_card_t *this, uint8_t *buffer, uint32_t length) {
 	uint16_t crc;
 
 	// read until start byte (0xFE)
@@ -846,7 +849,7 @@ static int sd_read_bytes(sd_t *this, uint8_t *buffer, uint32_t length) {
 	sd_deselect(this);
 	return 0;
 }
-static int sd_read_block(sd_t *this, uint8_t *buffer, uint32_t length) {
+static int sd_read_block(sd_card_t *this, uint8_t *buffer, uint32_t length) {
 	uint16_t crc;
 
 	// read until start byte (0xFE)
@@ -880,7 +883,7 @@ static int sd_read_block(sd_t *this, uint8_t *buffer, uint32_t length) {
 }
 
 static int 
-sd_read_blocks_unlocked(sd_t *this, uint8_t *buffer, uint64_t ulSectorNumber, uint32_t ulSectorCount) {
+sd_read_blocks_unlocked(sd_card_t *this, uint8_t *buffer, uint64_t ulSectorNumber, uint32_t ulSectorCount) {
 
 	uint32_t blockCnt = ulSectorCount;
 
@@ -926,14 +929,14 @@ sd_read_blocks_unlocked(sd_t *this, uint8_t *buffer, uint64_t ulSectorNumber, ui
 	return status;
 }
 
-int sd_read_blocks(sd_t *this, uint8_t *buffer, uint64_t ulSectorNumber, uint32_t ulSectorCount) {
+int sd_read_blocks(sd_card_t *this, uint8_t *buffer, uint64_t ulSectorNumber, uint32_t ulSectorCount) {
 	sd_lock(this);    
 	int status = sd_read_blocks_unlocked(this, buffer, ulSectorNumber, ulSectorCount);
 	sd_unlock(this);
 	return status;
 }
 
-static uint8_t sd_write_block(sd_t *this, const uint8_t *buffer, uint8_t token, uint32_t length) {
+static uint8_t sd_write_block(sd_card_t *this, const uint8_t *buffer, uint8_t token, uint32_t length) {
 
 	uint32_t crc = (~0);
 	uint8_t response = 0xFF;
@@ -982,7 +985,7 @@ static uint8_t sd_write_block(sd_t *this, const uint8_t *buffer, uint8_t token, 
  *                  SD_BLOCK_DEVICE_ERROR_ERASE - erase error
  */
 static int 
-sd_write_blocks_unlocked(sd_t *this, const uint8_t *buffer, uint64_t ulSectorNumber, uint32_t blockCnt) {
+sd_write_blocks_unlocked(sd_card_t *this, const uint8_t *buffer, uint64_t ulSectorNumber, uint32_t blockCnt) {
 	if (ulSectorNumber + blockCnt > this->sectors) 
 		return SD_BLOCK_DEVICE_ERROR_PARAMETER;
 	if (this->m_Status & (STA_NOINIT | STA_NODISK))
@@ -1044,7 +1047,7 @@ sd_write_blocks_unlocked(sd_t *this, const uint8_t *buffer, uint64_t ulSectorNum
 	return status;
 }
 	
-int sd_write_blocks(sd_t *this, const uint8_t *buffer, uint64_t ulSectorNumber, uint32_t blockCnt) {
+int sd_write_blocks(sd_card_t *this, const uint8_t *buffer, uint64_t ulSectorNumber, uint32_t blockCnt) {
 	sd_lock(this);
 	int status = sd_write_blocks_unlocked(this, buffer, ulSectorNumber, blockCnt);
 	sd_unlock(this);

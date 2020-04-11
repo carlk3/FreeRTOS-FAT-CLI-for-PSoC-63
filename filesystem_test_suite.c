@@ -161,7 +161,7 @@ static void unmount(FF_Disk_t *pxDisk, const char *pcPath) {
 static void prvSimpleTest() {
 	int err = 0;
 
-	FF_PRINTF("\nSimple Test)\n");
+	FF_PRINTF("\nSimple Test\n");
 
 	// Open the numbers file
 	FF_PRINTF("Opening \"/fs/numbers.txt\"... ");
@@ -368,27 +368,30 @@ static BaseType_t runEject(char *pcWriteBuffer,
 	);
 	/* Sanity check something was returned. */
 	configASSERT(pcParameter);
-	sd_t *pSD = sd_get_by_name(pcParameter);
+	sd_card_t *pSD = sd_get_by_name(pcParameter);
 	configASSERT(pSD);
-	FF_Disk_t *pxDisk = &pSD->ff_disk;
-	if (pxDisk) {
-		if (pxDisk->xStatus.bIsMounted) {
-			FF_FlushCache(pxDisk->pxIOManager);
-			FF_PRINTF("Invalidating %s\n", pSD->pcName);     
-			FF_Invalidate(pxDisk->pxIOManager);                                
-			FF_PRINTF("Unmounting %s\n", pSD->pcName);                                     
-			FF_Unmount(pxDisk);
-			pxDisk->xStatus.bIsMounted = pdFALSE;    
-			Cy_GPIO_Write(LED8_PORT, LED8_NUM, 1) ;     
-		}       
-		if (pxDisk->xStatus.bIsInitialised) {
-			if (pxDisk->pxIOManager)
-				FF_DeleteIOManager(pxDisk->pxIOManager);
-			pxDisk->xStatus.bIsInitialised = pdFALSE;                        
-		}
-		sd_deinit(pSD);    
-		Cy_GPIO_Write(LED9_PORT, LED9_NUM, 1) ;     
-	}
+    size_t i;
+    for (i = 0; i < pSD->ff_disk_count; ++i) {
+    	FF_Disk_t *pxDisk = pSD->ff_disks[i];
+    	if (pxDisk) {
+    		if (pxDisk->xStatus.bIsMounted) {
+    			FF_FlushCache(pxDisk->pxIOManager);
+    			FF_PRINTF("Invalidating %s\n", pSD->pcName);     
+    			FF_Invalidate(pxDisk->pxIOManager);                                
+    			FF_PRINTF("Unmounting %s\n", pSD->pcName);                                     
+    			FF_Unmount(pxDisk);
+    			pxDisk->xStatus.bIsMounted = pdFALSE;    
+    			Cy_GPIO_Write(LED8_PORT, LED8_NUM, 1) ;     
+    		}       
+    		if (pxDisk->xStatus.bIsInitialised) {
+    			if (pxDisk->pxIOManager)
+    				FF_DeleteIOManager(pxDisk->pxIOManager);
+    			pxDisk->xStatus.bIsInitialised = pdFALSE;                        
+    		}
+        }
+    }
+	sd_deinit(pSD);    
+	Cy_GPIO_Write(LED9_PORT, LED9_NUM, 1) ;     
 	return pdFALSE;
 }
 static const CLI_Command_Definition_t xEject = { 

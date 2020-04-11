@@ -64,7 +64,7 @@ static spi_t spi[] = { // One for each SPI.
 };
 
 // Hardware Configuration of the SD Card "objects"
-static sd_t sd_cards[] = { 	// One for each SD card
+static sd_card_t sd_cards[] = { 	// One for each SD card
 	{ 
 		.pcName = "SDCard",   // Name used to mount device
 		.spi = &spi[0], // Pointer to the SPI driving this card
@@ -79,23 +79,8 @@ static sd_t sd_cards[] = { 	// One for each SD card
 		.sectors = 0, 
 		.card_type = 0, 
 		.mutex = 0,
-		.ff_disk = 
-			{ // struct xFFDisk
-				{ // xStatus
-					.bIsInitialised = 0,
-					.bIsMounted = 0,
-					.spare0 = 0,
-					.bPartitionNumber = 0,
-					.spare1 = 0
-				},
-/* The pvTag member of the FF_Disk_t structure allows the structure to be
- extended to also include media specific parameters.  */                
-				.pvTag = &sd_cards[0], // Pointer to enclosing sd_t
-				.pxIOManager = NULL,
-				.ulNumberOfSectors = 0,
-				.fnFlushApplicationHook = NULL,
-				.ulSignature = 0
-			}
+        .ff_disk_count = 0,
+		.ff_disks = NULL
 	}	
 };
 
@@ -150,7 +135,7 @@ void Card_Detect_ISR() {
 }
 
 /* ********************************************************************** */
-sd_t *sd_get_by_name(const char *const name) {
+sd_card_t *sd_get_by_name(const char *const name) {
 	size_t i;
 	for (i = 0; i < sizeof(sd_cards) / sizeof(sd_cards[0]); ++i) {
 		if (0 == strcmp(sd_cards[i].pcName, name))
@@ -163,7 +148,7 @@ sd_t *sd_get_by_name(const char *const name) {
 	return &sd_cards[i];
 }        
 
-sd_t *sd_get_by_num(size_t num) {
+sd_card_t *sd_get_by_num(size_t num) {
 	if (num <= sizeof(sd_cards) / sizeof(sd_cards[0])) {
 		return &sd_cards[num];
 	} else {
