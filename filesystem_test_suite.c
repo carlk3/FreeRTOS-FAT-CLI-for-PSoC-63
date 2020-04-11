@@ -34,6 +34,8 @@
 #include "FreeRTOS_CLI.h"
 #include "uart_cli.h"
 
+#include "hw_config.h"
+
 extern int low_level_io_tests();
 extern void vMultiTaskStdioWithCWDTest(const char * const pcMountPath,
 		uint16_t usStackSizeWords);
@@ -89,64 +91,64 @@ static FF_Error_t prvPartitionAndFormatDisk( FF_Disk_t *pxDisk )
 FF_PartitionParameters_t xPartition;
 FF_Error_t xError;
 
-    /* Media cannot be used until it has been partitioned.  In this
+	/* Media cannot be used until it has been partitioned.  In this
 	case a single partition is to be created that fills all available space – so
 	by clearing the xPartition structure to zero. */
-    memset( &xPartition, 0x00, sizeof( xPartition ) );
-    xPartition.ulSectorCount = pxDisk->ulNumberOfSectors;
-    xPartition.ulHiddenSectors = HIDDEN_SECTOR_COUNT;
-    xPartition.xPrimaryCount = PRIMARY_PARTITIONS;
-    xPartition.eSizeType = eSizeIsQuota;
+	memset( &xPartition, 0x00, sizeof( xPartition ) );
+	xPartition.ulSectorCount = pxDisk->ulNumberOfSectors;
+	xPartition.ulHiddenSectors = HIDDEN_SECTOR_COUNT;
+	xPartition.xPrimaryCount = PRIMARY_PARTITIONS;
+	xPartition.eSizeType = eSizeIsQuota;
 
-    /* Perform the partitioning. */
-    xError = FF_Partition( pxDisk, &xPartition );
+	/* Perform the partitioning. */
+	xError = FF_Partition( pxDisk, &xPartition );
 
-    /* Print out the result of the partition operation. */
-    FF_PRINTF( "FF_Partition: %s\n", FF_GetErrMessage( xError ) );
+	/* Print out the result of the partition operation. */
+	FF_PRINTF( "FF_Partition: %s\n", FF_GetErrMessage( xError ) );
 
-    /* Was the disk partitioned successfully? */
-    if( FF_isERR( xError ) == pdFALSE )
-    {
-        /* The disk was partitioned successfully.  Format the first partition. */
-        xError = FF_Format( pxDisk, 0, pdFALSE, pdFALSE );
+	/* Was the disk partitioned successfully? */
+	if( FF_isERR( xError ) == pdFALSE )
+	{
+		/* The disk was partitioned successfully.  Format the first partition. */
+		xError = FF_Format( pxDisk, 0, pdFALSE, pdFALSE );
 
-        /* Print out the result of the format operation. */
-        FF_PRINTF( "FF_Format: %s\n", FF_GetErrMessage( xError ) );
-    }
+		/* Print out the result of the format operation. */
+		FF_PRINTF( "FF_Format: %s\n", FF_GetErrMessage( xError ) );
+	}
 
-    return xError;
+	return xError;
 }
- 
+
 static bool format(FF_Disk_t **ppxDisk, const char *const devName) {
-    *ppxDisk = FF_SDDiskInit( devName );
-    if (!*ppxDisk) {
-        return false;
-    }
-    FF_Error_t e = prvPartitionAndFormatDisk(*ppxDisk);
-    return FF_ERR_NONE == e ? true : false;
+	*ppxDisk = FF_SDDiskInit( devName );
+	if (!*ppxDisk) {
+		return false;
+	}
+	FF_Error_t e = prvPartitionAndFormatDisk(*ppxDisk);
+	return FF_ERR_NONE == e ? true : false;
 }
 
 static bool mount(FF_Disk_t **ppxDisk, const char *const devName, const char *const path) {
-    *ppxDisk = FF_SDDiskInit( devName );
-    if (!*ppxDisk) {
-        return false;
-    }
-    // BaseType_t FF_SDDiskMount( FF_Disk_t *pDisk );
-    FF_Error_t xError = FF_SDDiskMount(*ppxDisk);
-    if (FF_isERR( xError ) != pdFALSE) {
-	    FF_PRINTF("FF_SDDiskMount: %s\n", (const char *) FF_GetErrMessage(xError));
-        return false;
-    }
-    return FF_FS_Add( path, *ppxDisk );
+	*ppxDisk = FF_SDDiskInit( devName );
+	if (!*ppxDisk) {
+		return false;
+	}
+	// BaseType_t FF_SDDiskMount( FF_Disk_t *pDisk );
+	FF_Error_t xError = FF_SDDiskMount(*ppxDisk);
+	if (FF_isERR( xError ) != pdFALSE) {
+		FF_PRINTF("FF_SDDiskMount: %s\n", (const char *) FF_GetErrMessage(xError));
+		return false;
+	}
+	return FF_FS_Add( path, *ppxDisk );
 }
 static void unmount(FF_Disk_t *pxDisk, const char *pcPath) {
 	FF_FS_Remove(pcPath);
 
 	/*Unmount the partition. */
 	FF_Error_t xError = FF_SDDiskUnmount(pxDisk);
-    if (FF_isERR( xError ) != pdFALSE) {
-    	FF_PRINTF("FF_Unmount: %s\n", (const char *) FF_GetErrMessage(xError));
-    }
+	if (FF_isERR( xError ) != pdFALSE) {
+		FF_PRINTF("FF_Unmount: %s\n", (const char *) FF_GetErrMessage(xError));
+	}
 	FF_SDDiskDelete(pxDisk);
 	pxDisk = 0;
 }
@@ -290,31 +292,31 @@ static BaseType_t runFormat(char *pcWriteBuffer,
 
 	/* Obtain the parameter string. */
 	pcParameter = FreeRTOS_CLIGetParameter(
-        pcCommandString, /* The command string itself. */
-	    1, /* Return the first parameter. */
-	    &xParameterStringLength /* Store the parameter string length. */
+		pcCommandString, /* The command string itself. */
+		1, /* Return the first parameter. */
+		&xParameterStringLength /* Store the parameter string length. */
 	);
 	/* Sanity check something was returned. */
 	configASSERT(pcParameter);
 	FF_Disk_t *pxDisk;
 	bool rc = format(&pxDisk, pcParameter);
 	if (!rc)
-        FF_PRINTF("Format failed!\n");
-    else {        
+		FF_PRINTF("Format failed!\n");
+	else {        
 //    	/*Unmount the partition. */
 //    	FF_Error_t xError = FF_SDDiskUnmount(pxDisk);
 //        if (FF_isERR( xError ) != pdFALSE) {
 //        	FF_PRINTF("FF_Unmount: %s\n", (const char *) FF_GetErrMessage(xError));
 //        }
 //    	FF_SDDiskDelete(pxDisk);
-    }
-    return pdFALSE;
+	}
+	return pdFALSE;
 }
 static const CLI_Command_Definition_t xFormat = { 
 		"format", /* The command string to type. */
 		"\nformat <device name>:\n Format <device name>\n"
 		"\te.g.: \"format SDCard\"\n", 
-        runFormat, /* The function to run. */
+		runFormat, /* The function to run. */
 		1 /* One parameter is expected. */
 };
 /*-----------------------------------------------------------*/
@@ -327,9 +329,9 @@ static BaseType_t runMount(char *pcWriteBuffer,
 
 	/* Obtain the parameter string. */
 	pcParameter = FreeRTOS_CLIGetParameter(
-        pcCommandString, /* The command string itself. */
-	    1, /* Return the first parameter. */
-	    &xParameterStringLength /* Store the parameter string length. */
+		pcCommandString, /* The command string itself. */
+		1, /* Return the first parameter. */
+		&xParameterStringLength /* Store the parameter string length. */
 	);
 	/* Sanity check something was returned. */
 	configASSERT(pcParameter);
@@ -339,15 +341,61 @@ static BaseType_t runMount(char *pcWriteBuffer,
 	FF_Disk_t *pxDisk;
 	bool rc = mount(&pxDisk, pcParameter, buf);
 	if (!rc)
-        FF_PRINTF("Mount failed!\n");
-        
-    return pdFALSE;
+		FF_PRINTF("Mount failed!\n");
+		
+	return pdFALSE;
 }
 static const CLI_Command_Definition_t xMount = { 
 		"mount", /* The command string to type. */
-		"\nmount <device name>:\n Mount <devide name> at /<device name>\n"
+		"\nmount <device name>:\n Mount <device name> at /<device name>\n"
 		"\te.g.: \"mount SDCard\"\n", 
-        runMount, /* The function to run. */
+		runMount, /* The function to run. */
+		1 /* One parameter is expected. */
+};
+/*-----------------------------------------------------------*/
+static BaseType_t runEject(char *pcWriteBuffer,
+		size_t xWriteBufferLen, const char *pcCommandString) {
+	(void) pcWriteBuffer;
+	(void) xWriteBufferLen;
+	const char *pcParameter;
+	BaseType_t xParameterStringLength;
+
+	/* Obtain the parameter string. */
+	pcParameter = FreeRTOS_CLIGetParameter(
+		pcCommandString, /* The command string itself. */
+		1, /* Return the first parameter. */
+		&xParameterStringLength /* Store the parameter string length. */
+	);
+	/* Sanity check something was returned. */
+	configASSERT(pcParameter);
+	sd_t *pSD = sd_get_by_name(pcParameter);
+	configASSERT(pSD);
+	FF_Disk_t *pxDisk = &pSD->ff_disk;
+	if (pxDisk) {
+		if (pxDisk->xStatus.bIsMounted) {
+			FF_FlushCache(pxDisk->pxIOManager);
+			FF_PRINTF("Invalidating %s\n", pSD->pcName);     
+			FF_Invalidate(pxDisk->pxIOManager);                                
+			FF_PRINTF("Unmounting %s\n", pSD->pcName);                                     
+			FF_Unmount(pxDisk);
+			pxDisk->xStatus.bIsMounted = pdFALSE;    
+			Cy_GPIO_Write(LED8_PORT, LED8_NUM, 1) ;     
+		}       
+		if (pxDisk->xStatus.bIsInitialised) {
+			if (pxDisk->pxIOManager)
+				FF_DeleteIOManager(pxDisk->pxIOManager);
+			pxDisk->xStatus.bIsInitialised = pdFALSE;                        
+		}
+		sd_deinit(pSD);    
+		Cy_GPIO_Write(LED9_PORT, LED9_NUM, 1) ;     
+	}
+	return pdFALSE;
+}
+static const CLI_Command_Definition_t xEject = { 
+		"eject", /* The command string to type. */
+		"\neject <device name>:\n Eject <device name>\n"
+		"\te.g.: \"eject SDCard\"\n", 
+		runEject, /* The function to run. */
 		1 /* One parameter is expected. */
 };
 /*-----------------------------------------------------------*/
@@ -375,7 +423,7 @@ static const CLI_Command_Definition_t xLowLevIOTests = {
 		"lliot", /* The command string to type. */
 		"\nlliot <device name>:\n !DESTRUCTIVE! Low Level I/O Driver Test\n"
 		"\te.g.: \"lliot SDCard\"\n", 
-        runLLIOTCommand, /* The function to run. */
+		runLLIOTCommand, /* The function to run. */
 		1 /* One parameter is expected. */
 };
 /*-----------------------------------------------------------*/
@@ -390,9 +438,9 @@ static BaseType_t runCreateDiskAndExampleFiles(char *pcWriteBuffer,
 
 	/* Obtain the parameter string. */
 	pcParameter = FreeRTOS_CLIGetParameter(
-        pcCommandString, /* The command string itself. */
-    	1, /* Return the first parameter. */
-    	&xParameterStringLength /* Store the parameter string length. */
+		pcCommandString, /* The command string itself. */
+		1, /* Return the first parameter. */
+		&xParameterStringLength /* Store the parameter string length. */
 	);
 	/* Sanity check something was returned. */
 	configASSERT(pcParameter);
@@ -412,7 +460,7 @@ static const CLI_Command_Definition_t xExampFiles = {
 		"\ncdef <device name>:\n Create Disk and Example Files\n"
 		"Expects card to be already formatted but not mounted.\n"
 		"\te.g.: \"cdef SDCard\"\n", 
-        runCreateDiskAndExampleFiles, /* The function to run. */
+		runCreateDiskAndExampleFiles, /* The function to run. */
 		1 /* One parameter is expected. */
 };
 /*-----------------------------------------------------------*/
@@ -425,9 +473,9 @@ static BaseType_t runStdioWithCWDTest(char *pcWriteBuffer,
 
 	/* Obtain the parameter string. */
 	pcParameter = FreeRTOS_CLIGetParameter(
-        pcCommandString, /* The command string itself. */
-    	1, /* Return the first parameter. */
-    	&xParameterStringLength /* Store the parameter string length. */
+		pcCommandString, /* The command string itself. */
+		1, /* Return the first parameter. */
+		&xParameterStringLength /* Store the parameter string length. */
 	);
 	/* Sanity check something was returned. */
 	configASSERT(pcParameter);
@@ -437,12 +485,12 @@ static BaseType_t runStdioWithCWDTest(char *pcWriteBuffer,
 	bool rc = mount(&pxDisk, pcParameter, buf);
 	configASSERT(rc);
 
-    // Clear out leftovers from earlier runs
-    ff_chdir(buf);
-    ff_remove("Dummy.txt");
+	// Clear out leftovers from earlier runs
+	ff_chdir(buf);
+	ff_remove("Dummy.txt");
 	ff_deltree("source_dir");
 	ff_deltree("destination_dir");
-    
+	
 	vStdioWithCWDTest(buf);
 
 	unmount(pxDisk, buf);
@@ -452,8 +500,8 @@ static const CLI_Command_Definition_t xStdioWithCWDTest = {
 		"swcwdt", /* The command string to type. */
 		"\nswcwdt <device name>:\n Stdio With CWD Test\n"
 		"Expects card to be already formatted but not mounted.\n"
-        "\te.g.: \"swcwdt SDCard\"\n", 
-        runStdioWithCWDTest, /* The function to run. */
+		"\te.g.: \"swcwdt SDCard\"\n", 
+		runStdioWithCWDTest, /* The function to run. */
 		1 /* No parameters are expected. */
 };
 /*-----------------------------------------------------------*/
@@ -464,7 +512,7 @@ static BaseType_t runMultiTaskStdioWithCWDTest(char *pcWriteBuffer,
 	(void) xWriteBufferLen;
 
 	FF_Disk_t *pxDisk;
-    bool rc = mount(&pxDisk, "SDCard", "/SDCard");
+	bool rc = mount(&pxDisk, "SDCard", "/SDCard");
 	configASSERT(rc);
 
 	ff_deltree("/SDCard/0");
@@ -482,8 +530,8 @@ static const CLI_Command_Definition_t xMultiTaskStdioWithCWDTest = {
 		"mtswcwdt", /* The command string to type. */
 		"\nmtswcwdt <device name>:\n MultiTask Stdio With CWD Test\n"
 		"Expects card to be already formatted but not mounted.\n"
-        "\te.g.: \"mtswcwdt SDCard\"\n", 
-        runMultiTaskStdioWithCWDTest, /* The function to run. */
+		"\te.g.: \"mtswcwdt SDCard\"\n", 
+		runMultiTaskStdioWithCWDTest, /* The function to run. */
 		1 /* parameters are expected. */
 };
 /*-----------------------------------------------------------*/
@@ -496,15 +544,15 @@ static BaseType_t runSimpleFSTest(char *pcWriteBuffer,
 
 	/* Obtain the parameter string. */
 	pcParameter = FreeRTOS_CLIGetParameter(pcCommandString, /* The command string itself. */
-	    1, /* Return the first parameter. */
-	    &xParameterStringLength /* Store the parameter string length. */
+		1, /* Return the first parameter. */
+		&xParameterStringLength /* Store the parameter string length. */
 	);
 
 	/* Sanity check something was returned. */
 	configASSERT(pcParameter);
 
 	FF_Disk_t *pxDisk;    
-    bool rc = mount(&pxDisk, pcParameter, "/fs");
+	bool rc = mount(&pxDisk, pcParameter, "/fs");
 	configASSERT(rc);
 
 	prvSimpleTest();    
@@ -517,7 +565,7 @@ static const CLI_Command_Definition_t xSimpleFSTest = {
 		"\nsimple <device name>:\n Run simple FS tests\n"
 		"Expects card to already be formatted but not mounted.\n"
 		"\te.g.: \"simple SDCard\"\n", 
-        runSimpleFSTest, /* The function to run. */
+		runSimpleFSTest, /* The function to run. */
 		1 /* One parameter is expected. */
 };
 /*-----------------------------------------------------------*/
@@ -530,7 +578,7 @@ const char *pcSeed, *pcSize;
 size_t size; 
 uint32_t seed;
 BaseType_t xParameterStringLength;
-  
+
 	/* Obtain the seed. */
 	pcSeed = FreeRTOS_CLIGetParameter
 						(
@@ -541,8 +589,8 @@ BaseType_t xParameterStringLength;
 
 	/* Sanity check something was returned. */
 	configASSERT( pcSeed );
-    seed = atoi(pcSeed);
-    
+	seed = atoi(pcSeed);
+	
 	/* Obtain the file size. */
 	pcSize = FreeRTOS_CLIGetParameter
 						(
@@ -553,8 +601,8 @@ BaseType_t xParameterStringLength;
 
 	/* Sanity check something was returned. */
 	configASSERT( pcSize );
-    size = strtoul(pcSize, 0, 0);
-    
+	size = strtoul(pcSize, 0, 0);
+	
 
 	/* Obtain the pathname. */
 	pcPathName = ( char * ) FreeRTOS_CLIGetParameter
@@ -570,8 +618,8 @@ BaseType_t xParameterStringLength;
 	/* Terminate the string. */
 	pcPathName[ xParameterStringLength ] = 0x00;
 
-    big_file_test(pcPathName, size, seed);        
-    
+	big_file_test(pcPathName, size, seed);        
+	
 	return pdFALSE;
 }
 /* Structure that defines the COPY command line command, which deletes a file. */
@@ -588,6 +636,7 @@ void register_fs_tests() {
 	/* Register all the command line commands defined immediately above. */
 	FreeRTOS_CLIRegisterCommand(&xFormat);        
 	FreeRTOS_CLIRegisterCommand(&xMount);    
+	FreeRTOS_CLIRegisterCommand(&xEject);        
 	FreeRTOS_CLIRegisterCommand(&xLowLevIOTests);
 	FreeRTOS_CLIRegisterCommand(&xSimpleFSTest);        
 	FreeRTOS_CLIRegisterCommand(&xExampFiles);

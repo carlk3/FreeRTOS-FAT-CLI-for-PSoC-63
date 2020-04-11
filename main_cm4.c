@@ -35,15 +35,11 @@ void my_assert_func (const char *file, int line, const char *func, const char *p
 #endif    
 }
 
-// void init_hardware(void);
-
 int main(void) {
 
 	__enable_irq(); /* Enable global interrupts. */
 
 	/* Place your initialization/startup code here (e.g. MyInst_Start()) */
-    
-//init_hardware();    
    
     CLI_Start();     
     register_fs_tests();        

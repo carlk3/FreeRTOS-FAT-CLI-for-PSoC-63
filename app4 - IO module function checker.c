@@ -79,7 +79,7 @@ int test_diskio (
         printf("Insufficient work area to run the program.\n");
         return 1;
     }
-
+    
     for (cc = 1; cc <= ncyc; cc++) {
         printf("**** Test cycle %u of %u start ****\n", cc, ncyc);
 
@@ -99,7 +99,6 @@ int test_diskio (
         } else {
             printf(" - ok.\n");
         }
-
         printf("**** Get drive size ****\n");
         printf(" disk_ioctl(%p, GET_SECTOR_COUNT, 0x%08X)", pdrv, (UINT)&sz_drv);
 //        sz_drv = 0;

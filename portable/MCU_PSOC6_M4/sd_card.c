@@ -453,15 +453,14 @@ bool sd_card_detect(sd_t *this) {
 			== this->card_detected_true) {
 		//The socket is now occupied
 		this->m_Status &= ~STA_NODISK;
-		this->card_type = CARD_UNKNOWN;
-	    Cy_GPIO_Write(LED9_PORT, LED9_NUM, 0) ;                
+		Cy_GPIO_Write(LED9_PORT, LED9_NUM, 0) ;                
 		return true;
 	} else {
 		//The socket is now empty
 		this->m_Status |= (STA_NODISK | STA_NOINIT);
 		this->card_type = SDCARD_NONE;
 		DBG_PRINTF("No SD card detected!\n");
-	    Cy_GPIO_Write(LED9_PORT, LED9_NUM, 1) ;
+		Cy_GPIO_Write(LED9_PORT, LED9_NUM, 1) ;
 		return false;
 	}
 }
@@ -688,25 +687,30 @@ static void CardDetectTask(void *arg) {
 		// Returns: The value of the task’s notification value:
 		//  in this case, the SD card number
 		uint32_t card_num = ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-        DBG_PRINTF("Task was notified.\n");        
+//		DBG_PRINTF("Task was notified.\n");        
 		sd_t *pSD = sd_get_by_num(card_num);
 		configASSERT(pSD);
 		FF_Disk_t *pxDisk = &pSD->ff_disk;
-		if (pxDisk->xStatus.bIsInitialised) {
-			sd_lock(pSD);                        
-			if (!sd_card_detect(pSD)) {
-				if (pxDisk->xStatus.bIsMounted) {
-					FF_PRINTF("Invalidating %s\n", pSD->pcName);     
-					FF_Invalidate(pxDisk->pxIOManager);                                
-					FF_PRINTF("Unmounting %s\n", pSD->pcName);                                     
-					FF_Unmount(pxDisk);
-					pxDisk->xStatus.bIsMounted = pdFALSE;                    
-					if (pxDisk->pxIOManager)
-						FF_DeleteIOManager(pxDisk->pxIOManager);
-					sd_deinit(pSD);                    
-					pxDisk->xStatus.bIsInitialised = pdFALSE;
-				}
-			}  
+		if (pxDisk) {
+			if (pxDisk->xStatus.bIsInitialised) {
+				sd_lock(pSD);                        
+				if (!sd_card_detect(pSD)) {
+					if (pxDisk->xStatus.bIsMounted) {
+						FF_PRINTF("Invalidating %s\n", pSD->pcName);     
+						FF_Invalidate(pxDisk->pxIOManager);                                
+						FF_PRINTF("Unmounting %s\n", pSD->pcName);                                     
+						FF_Unmount(pxDisk);
+						pxDisk->xStatus.bIsMounted = pdFALSE;    
+						Cy_GPIO_Write(LED8_PORT, LED8_NUM, 1) ;   
+					}
+					if (pxDisk->xStatus.bIsInitialised) {
+						if (pxDisk->pxIOManager)
+							FF_DeleteIOManager(pxDisk->pxIOManager);
+						pxDisk->xStatus.bIsInitialised = pdFALSE;
+					}
+					sd_deinit(pSD);                                                    
+				}  
+			}
 			sd_unlock(pSD);                
 		}
 	}
@@ -721,7 +725,7 @@ static BaseType_t sd_card_detect_start(sd_t *this) {
 		configASSERT(pdPASS == rc);
 		cy_en_sysint_status_t st = 
 			Cy_SysInt_Init(this->card_detect_int_cfg, this->card_detect_ISR); 
-		configASSERT(CY_SYSINT_SUCCESS  == st);
+		configASSERT(CY_SYSINT_SUCCESS  == st);            
 		NVIC_ClearPendingIRQ(this->card_detect_int_cfg->intrSrc);
 		NVIC_EnableIRQ(this->card_detect_int_cfg->intrSrc);   
 	}
