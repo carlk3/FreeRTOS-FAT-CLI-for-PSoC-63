@@ -662,7 +662,7 @@ const char * pcAttrib;
 
 	/* Create a string that includes the file name, the file size and the
 	attributes string. */
-	sprintf( pcBuffer, "%s [%s] [size=%d]", pxFindStruct->pcFileName, pcAttrib, ( int ) pxFindStruct->ulFileSize );
+	sprintf( pcBuffer, "%s [%s] [size=%lu]", pxFindStruct->pcFileName, pcAttrib, (unsigned long)pxFindStruct->ulFileSize );
 }
 
 
