@@ -60,7 +60,7 @@ void sd_spi_go_high_frequency(sd_card_t *this) {
 	//  UserSDCrd_SPI_SCBCLK_SetDivider(1u);
 
 	// For 12.5 MHz:  0    
-	const static uint32_t div = 2; //FIXME
+	const static uint32_t div = 1; // Gives 6250 kHz
 
 	sd_spi_acquire(this);
 
