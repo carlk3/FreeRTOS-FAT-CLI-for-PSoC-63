@@ -381,7 +381,7 @@ static BaseType_t runEject(char *pcWriteBuffer,
     			FF_PRINTF("Unmounting %s\n", pSD->pcName);                                     
     			FF_Unmount(pxDisk);
     			pxDisk->xStatus.bIsMounted = pdFALSE;    
-    			Cy_GPIO_Write(LED8_PORT, LED8_NUM, 1) ;     
+    			Cy_GPIO_Write(BlueLED_PORT, BlueLED_NUM, 1) ;     
     		}       
     		if (pxDisk->xStatus.bIsInitialised) {
     			if (pxDisk->pxIOManager)
@@ -391,7 +391,7 @@ static BaseType_t runEject(char *pcWriteBuffer,
         }
     }
 	sd_deinit(pSD);    
-	Cy_GPIO_Write(LED9_PORT, LED9_NUM, 1) ;     
+	Cy_GPIO_Write(RedLED_PORT, RedLED_NUM, 1) ;     
 	return pdFALSE;
 }
 static const CLI_Command_Definition_t xEject = { 

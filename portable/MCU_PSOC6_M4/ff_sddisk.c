@@ -53,7 +53,7 @@ static FF_Disk_t disks[] =
 		},
 /* The pvTag member of the FF_Disk_t structure allows the structure to be
  extended to also include media specific parameters.  */                
-		.pvTag = NULL, // Pointer to enclosing sd_t
+		.pvTag = NULL, // Pointer to enclosing sd_card_t
 		.pxIOManager = NULL,
 		.ulNumberOfSectors = 0,
 		.fnFlushApplicationHook = NULL,
@@ -174,7 +174,7 @@ BaseType_t FF_SDDiskUnmount( FF_Disk_t *pDisk ) {
 		FF_PRINTF("FF_Unmount error: %s\n", FF_GetErrMessage(e));
 	} else {
 		pDisk->xStatus.bIsMounted = pdFALSE;
-	    Cy_GPIO_Write(LED8_PORT, LED8_NUM, 1) ;                                
+	    Cy_GPIO_Write(BlueLED_PORT, BlueLED_NUM, 1) ;                                
 	}
 	return e;
 }
@@ -188,7 +188,7 @@ BaseType_t FF_SDDiskMount( FF_Disk_t *pDisk ) {
 		FF_PRINTF("FF_Mount error: %s\n", FF_GetErrMessage(e));
 	} else {
 		pDisk->xStatus.bIsMounted = pdTRUE;
-	    Cy_GPIO_Write(LED8_PORT, LED8_NUM, 0) ;                        
+	    Cy_GPIO_Write(BlueLED_PORT, BlueLED_NUM, 0) ;                        
 	}
 	return e;    
 }
@@ -203,7 +203,7 @@ BaseType_t FF_SDDiskDelete(FF_Disk_t *pxDisk) {
 		if (pxDisk->pvTag) {
 			sd_deinit(pxDisk->pvTag);                    
 		}
-	    Cy_GPIO_Write(LED9_PORT, LED9_NUM, 1) ;                                        
+	    Cy_GPIO_Write(RedLED_PORT, RedLED_NUM, 1) ;                                        
 	}
 	return pdPASS;
 }

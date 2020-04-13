@@ -15,6 +15,37 @@
 
 #include "FreeRTOSFATConfig.h" // for DBG_PRINTF
 
+/* Combine SPI master error statuses in single mask */
+#define MASTER_ERROR_MASK  (CY_SCB_SPI_SLAVE_TRANSFER_ERR  | CY_SCB_SPI_TRANSFER_OVERFLOW    | \
+							CY_SCB_SPI_TRANSFER_UNDERFLOW)  
+
+void SPI_handle_event(spi_t *this, uint32_t event) {
+	// CY_SCB_SPI_TRANSFER_CMPLT_EVENT   (0x02U)
+	// The transfer operation started by Cy_SCB_SPI_Transfer is complete.
+	if (CY_SCB_SPI_TRANSFER_CMPLT_EVENT == event) {
+		/* The xHigherPriorityTaskWoken parameter must be initialized to pdFALSE as
+		 it will get set to pdTRUE inside the interrupt safe API function if a
+		 context switch is required. */
+		BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+		/* Send a notification directly to the task to which interrupt processing is
+		 being deferred. */
+		configASSERT(this->owner);
+		vTaskNotifyGiveFromISR(this->owner, // The handle of the task to which the notification is being sent.
+				&xHigherPriorityTaskWoken);
+		/* Pass the xHigherPriorityTaskWoken value into portYIELD_FROM_ISR(). If
+		 xHigherPriorityTaskWoken was set to pdTRUE inside vTaskNotifyGiveFromISR()
+		 then calling portYIELD_FROM_ISR() will request a context switch. If
+		 xHigherPriorityTaskWoken is still pdFALSE then calling
+		 portYIELD_FROM_ISR() will have no effect. */
+		portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+	} else {
+		if (MASTER_ERROR_MASK & event) {
+			DBG_PRINTF("SysSDCrd0_SPI_handle_event. Event: 0x%lx\n", (unsigned long)event);
+			configASSERT(!(MASTER_ERROR_MASK & event));            
+		}
+	}
+}
+
 bool spi_init(spi_t *this) {
 	cy_en_scb_spi_status_t initStatus;
 	cy_en_sysint_status_t sysSpistatus;   

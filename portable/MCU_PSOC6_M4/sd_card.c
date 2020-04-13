@@ -453,14 +453,14 @@ bool sd_card_detect(sd_card_t *this) {
 			== this->card_detected_true) {
 		//The socket is now occupied
 		this->m_Status &= ~STA_NODISK;
-		Cy_GPIO_Write(LED9_PORT, LED9_NUM, 0) ;                
+		Cy_GPIO_Write(RedLED_PORT, RedLED_NUM, 0) ;                
 		return true;
 	} else {
 		//The socket is now empty
 		this->m_Status |= (STA_NODISK | STA_NOINIT);
 		this->card_type = SDCARD_NONE;
 		DBG_PRINTF("No SD card detected!\n");
-		Cy_GPIO_Write(LED9_PORT, LED9_NUM, 1) ;
+		Cy_GPIO_Write(RedLED_PORT, RedLED_NUM, 1) ;
 		return false;
 	}
 }
@@ -703,7 +703,7 @@ static void CardDetectTask(void *arg) {
     						FF_PRINTF("Unmounting %s\n", pSD->pcName);                                     
     						FF_Unmount(pxDisk);
     						pxDisk->xStatus.bIsMounted = pdFALSE;    
-    						Cy_GPIO_Write(LED8_PORT, LED8_NUM, 1) ;   
+    						Cy_GPIO_Write(BlueLED_PORT, BlueLED_NUM, 1) ;   
     					}
     					if (pxDisk->xStatus.bIsInitialised) {
     						if (pxDisk->pxIOManager)
@@ -1052,6 +1052,24 @@ int sd_write_blocks(sd_card_t *this, const uint8_t *buffer, uint64_t ulSectorNum
 	int status = sd_write_blocks_unlocked(this, buffer, ulSectorNumber, blockCnt);
 	sd_unlock(this);
 	return status;
+}
+
+void card_detect_ISR(sd_card_t *this) {
+	/* Clears the triggered pin interrupt */
+	NVIC_ClearPendingIRQ(this->card_detect_int_cfg->intrSrc);  
+	
+	if (this->card_detect_task) {
+		BaseType_t xHigherPriorityTaskWoken;
+		// BaseType_t xTaskNotify( TaskHandle_t xTaskToNotify,
+		//                         uint32_t ulValue,
+		//                         eNotifyAction eAction );    
+		// Here, the ulValue is the card number.
+		BaseType_t rc = xTaskNotifyFromISR(this->card_detect_task, 0, 
+			eSetValueWithOverwrite, &xHigherPriorityTaskWoken);
+		configASSERT(pdPASS == rc);
+		/* Force a context switch if xHigherPriorityTaskWoken is now set to pdTRUE. */
+		portYIELD_FROM_ISR( xHigherPriorityTaskWoken );    
+	}
 }
 
 /* [] END OF FILE */

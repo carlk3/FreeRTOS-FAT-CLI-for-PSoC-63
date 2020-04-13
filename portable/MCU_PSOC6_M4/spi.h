@@ -40,7 +40,10 @@ typedef struct {
 	SemaphoreHandle_t mutex; // Assigned dynamically      
 } spi_t;
 
-bool spi_init(spi_t *this);
+bool spi_init(spi_t *pSD);
+
+// SPI Interrupt callback
+void SPI_handle_event(spi_t *this, uint32_t event);
 
 #endif
 /* [] END OF FILE */

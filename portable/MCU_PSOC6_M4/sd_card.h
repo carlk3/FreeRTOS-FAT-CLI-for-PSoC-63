@@ -27,7 +27,7 @@
 typedef struct {
 	const char *pcName;
 	spi_t * const spi;
-	// Slave select is here in sd_t because multiple SDs can share an SPI
+	// Slave select is here in sd_card_t because multiple SDs can share an SPI
 	const cy_en_scb_spi_slave_select_t ss; // Slave select for this SD card
 	GPIO_PRT_Type * const card_detect_gpio_port; // Card detect
 	const uint32_t card_detect_gpio_num; // Card detect
@@ -70,6 +70,8 @@ int sd_write_blocks(sd_card_t *this, const uint8_t *buffer, uint64_t ulSectorNum
 int sd_read_blocks(sd_card_t *this, uint8_t *buffer, uint64_t ulSectorNumber, uint32_t ulSectorCount);
 bool sd_card_detect(sd_card_t *this);
 uint64_t sd_sectors(sd_card_t *this);
+
+void card_detect_ISR(sd_card_t *this); 
 
 #endif
 /* [] END OF FILE */
