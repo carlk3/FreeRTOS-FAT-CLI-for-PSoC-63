@@ -510,22 +510,33 @@ static const CLI_Command_Definition_t xStdioWithCWDTest = {
 /*-----------------------------------------------------------*/
 static BaseType_t runMultiTaskStdioWithCWDTest(char *pcWriteBuffer,
 		size_t xWriteBufferLen, const char *pcCommandString) {
-	(void) pcCommandString;
 	(void) pcWriteBuffer;
 	(void) xWriteBufferLen;
+	const char *pcParameter;
+	BaseType_t xParameterStringLength;       
 
+	/* Obtain the parameter string. */
+	pcParameter = FreeRTOS_CLIGetParameter(
+		pcCommandString, /* The command string itself. */
+		1, /* Return the first parameter. */
+		&xParameterStringLength /* Store the parameter string length. */
+	);    
+	/* Sanity check something was returned. */
+	configASSERT(pcParameter);
+	char buf[cmdMAX_INPUT_SIZE];
+	snprintf(buf, cmdMAX_INPUT_SIZE, "/%s", pcParameter); // Add '/' for path
 	FF_Disk_t *pxDisk;
-	bool rc = mount(&pxDisk, "SDCard", "/SDCard");
+	bool rc = mount(&pxDisk, pcParameter, buf);
 	configASSERT(rc);
 
-	ff_deltree("/SDCard/0");
-	ff_deltree("/SDCard/1");
-	ff_deltree("/SDCard/2");
-	ff_deltree("/SDCard/3");
-	ff_deltree("/SDCard/4");
-
-	// Don't launch the new tasks until the above have completed.
-	vMultiTaskStdioWithCWDTest("/SDCard", 1024);
+	// Clear out leftovers from earlier runs
+    size_t i;
+    for (i=0; i <= 4; ++i) {
+	    snprintf(buf, cmdMAX_INPUT_SIZE, "/%s/%u", pcParameter, i); 
+	    ff_deltree(buf);
+    }
+	snprintf(buf, cmdMAX_INPUT_SIZE, "/%s", pcParameter); // Add '/' for path    
+	vMultiTaskStdioWithCWDTest(buf, 1024);
 
 	return pdFALSE;
 }
