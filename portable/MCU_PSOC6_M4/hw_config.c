@@ -26,7 +26,6 @@ which SPI it is driven by, and how it is wired.
 
 */
 
-
 #include <string.h>
 
 /* FreeRTOS includes. */
@@ -89,49 +88,11 @@ static sd_card_t sd_cards[] = { 	// One for each SD card
 // Each SPI has its own interrupt and callback.
 // Notifies task when a transfer is complete.
 void SPI_1_handle_event(uint32_t event) {
-	// CY_SCB_SPI_TRANSFER_CMPLT_EVENT   (0x02U)
-	// The transfer operation started by Cy_SCB_SPI_Transfer is complete.
-	if (CY_SCB_SPI_TRANSFER_CMPLT_EVENT == event) {
-		/* The xHigherPriorityTaskWoken parameter must be initialized to pdFALSE as
-		 it will get set to pdTRUE inside the interrupt safe API function if a
-		 context switch is required. */
-		BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-		/* Send a notification directly to the task to which interrupt processing is
-		 being deferred. */
-		configASSERT(spi[0].owner);
-		if (spi[0].owner) {
-			vTaskNotifyGiveFromISR(spi[0].owner, &xHigherPriorityTaskWoken);
-		}
-		/* Pass the xHigherPriorityTaskWoken value into portYIELD_FROM_ISR(). If
-		 xHigherPriorityTaskWoken was set to pdTRUE inside vTaskNotifyGiveFromISR()
-		 then calling portYIELD_FROM_ISR() will request a context switch. If
-		 xHigherPriorityTaskWoken is still pdFALSE then calling
-		 portYIELD_FROM_ISR() will have no effect. */
-		portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-	} else {
-		if (MASTER_ERROR_MASK & event) {
-			DBG_PRINTF("SPI_1_handle_event. Event: 0x%lx\n", event);
-			configASSERT(!(MASTER_ERROR_MASK & event));
-		}
-	}
+    SPI_handle_event(&spi[0], event);
 }
 
 void Card_Detect_ISR() {
-	/* Clears the triggered pin interrupt */
-	NVIC_ClearPendingIRQ(Card_Detect_Interrupt_cfg.intrSrc);  
-	
-	if (sd_cards[0].card_detect_task) {
-		BaseType_t xHigherPriorityTaskWoken;
-		// BaseType_t xTaskNotify( TaskHandle_t xTaskToNotify,
-		//                         uint32_t ulValue,
-		//                         eNotifyAction eAction );    
-		// Here, the ulValue is the card number.
-		BaseType_t rc = xTaskNotifyFromISR(sd_cards[0].card_detect_task, 0, 
-			eSetValueWithOverwrite, &xHigherPriorityTaskWoken);
-		configASSERT(pdPASS == rc);
-		/* Force a context switch if xHigherPriorityTaskWoken is now set to pdTRUE. */
-		portYIELD_FROM_ISR( xHigherPriorityTaskWoken );    
-	}
+    card_detect_ISR(&sd_cards[0]);
 }
 
 /* ********************************************************************** */
