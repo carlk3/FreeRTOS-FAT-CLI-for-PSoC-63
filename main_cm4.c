@@ -77,6 +77,21 @@ void vApplicationIdleHook(void)
     Cy_SysPm_Sleep(CY_SYSPM_WAIT_FOR_INTERRUPT);
 }
 
+void vApplicationMallocFailedHook( void ) {
+    fflush(stdout);
+    puts("Malloc failed!");
+    fflush(stdout);        
+    Cy_SysLib_Halt(0UL);    
+}
+
+void vApplicationStackOverflowHook( TaskHandle_t xTask, signed char *pcTaskName ) {
+    /* The stack space has been exceeded for a task, considering allocating more. */
+    fflush(stdout);
+    puts("Out of stack space!");
+    printf("Task: %p %s\n", xTask, pcTaskName);
+    fflush(stdout);            
+    Cy_SysLib_Halt(0UL);
+}
 
 void my_printf(const char *pcFormat, ...) {
 	char pcBuffer[256] = { 0 };

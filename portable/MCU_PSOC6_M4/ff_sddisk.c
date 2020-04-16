@@ -83,32 +83,39 @@ static bool disk_init(sd_card_t *pSD) {
 	/* Check the validity of the xIOManagerCacheSize parameter. */
 	configASSERT((xIOManagerCacheSize % SECTOR_SIZE) == 0);
 	configASSERT((xIOManagerCacheSize >= (2 * SECTOR_SIZE)));    
-    
+	
 	// Initialize the media driver
 	if (0 != sd_init(pSD)) {
 		// Couldn't init
 		return false;
 	}    
-    // This logic needs to change in order to support multiple partitions per card:
-    configASSERT(!pSD->ff_disk_count);
-    pSD->ff_disks = pvPortMalloc( sizeof( FF_Disk_t *) );
+	// This logic needs to change in order to support multiple partitions per card:
+	if ((pSD->ff_disk_count)
+		&& (pSD->ff_disks)
+		&& (pSD->ff_disks[0])
+		&& (pSD->ff_disks[0]->xStatus.bIsInitialised == pdTRUE))
+	{
+		return true;
+	}
+    // Allocate array of FF_Disk_t pointers:
+	pSD->ff_disks = pvPortMalloc( sizeof( FF_Disk_t *) );
 	if(!pSD->ff_disks) {
 		FF_PRINTF( "FF_SDDiskInit: Malloc failed\n" );   
-        return false;
-    }   
+		return false;
+	}   
 	/* Attempt to allocate the FF_Disk_t structure. */
 	pSD->ff_disks[0] = pvPortMalloc( sizeof( FF_Disk_t ) );
 	if(!pSD->ff_disks[0]) {
 		FF_PRINTF( "FF_SDDiskInit: Malloc failed\n" );     
-        vPortFree(pSD->ff_disks);        
-        return false;
-    }
-    pSD->ff_disk_count = 1;    
+		vPortFree(pSD->ff_disks);        
+		return false;
+	}
+	pSD->ff_disk_count = 1;    
 	/* Start with every member of the structure set to zero. */
 	memset( pSD->ff_disks[0], '\0', sizeof( FF_Disk_t ) );   
-    /* The pvTag member of the FF_Disk_t structure allows the structure to be
+	/* The pvTag member of the FF_Disk_t structure allows the structure to be
 		extended to also include media specific parameters. */
-    pSD->ff_disks[0]->pvTag = pSD;
+	pSD->ff_disks[0]->pvTag = pSD;
 
 	/* The number of sectors is recorded for bounds checking in the read and
 	 write functions. */
@@ -166,7 +173,7 @@ BaseType_t FF_SDDiskUnmount( FF_Disk_t *pDisk ) {
 		FF_PRINTF("FF_Unmount error: %s\n", FF_GetErrMessage(e));
 	} else {
 		pDisk->xStatus.bIsMounted = pdFALSE;
-	    Cy_GPIO_Write(BlueLED_PORT, BlueLED_NUM, 1) ;                                
+		Cy_GPIO_Write(BlueLED_PORT, BlueLED_NUM, 1) ;                                
 	}
 	return e;
 }
@@ -180,7 +187,7 @@ BaseType_t FF_SDDiskMount( FF_Disk_t *pDisk ) {
 		FF_PRINTF("FF_Mount error: %s\n", FF_GetErrMessage(e));
 	} else {
 		pDisk->xStatus.bIsMounted = pdTRUE;
-	    Cy_GPIO_Write(BlueLED_PORT, BlueLED_NUM, 0) ;                        
+		Cy_GPIO_Write(BlueLED_PORT, BlueLED_NUM, 0) ;                        
 	}
 	return e;    
 }
@@ -190,22 +197,22 @@ BaseType_t FF_SDDiskDelete(FF_Disk_t *pxDisk) {
 		if (pxDisk->pvTag) {
 			sd_deinit(pxDisk->pvTag);                    
 		}
-        if (pxDisk->xStatus.bIsInitialised) {
-        	if (pxDisk->pxIOManager) {
-        		FF_DeleteIOManager(pxDisk->pxIOManager);
-        	}
-        	pxDisk->ulSignature = 0;
-        	pxDisk->xStatus.bIsInitialised = pdFALSE;
-        }
-        sd_card_t *pSD = pxDisk->pvTag;
-        configASSERT(pSD);
-        vPortFree( pxDisk );
-        if (pSD->ff_disk_count == 1) {
-            configASSERT(pSD->ff_disks);
-            vPortFree( pSD->ff_disks);
-        }
-        pSD->ff_disk_count--;
-	    Cy_GPIO_Write(RedLED_PORT, RedLED_NUM, 1) ;                                        
+		if (pxDisk->xStatus.bIsInitialised) {
+			if (pxDisk->pxIOManager) {
+				FF_DeleteIOManager(pxDisk->pxIOManager);
+			}
+			pxDisk->ulSignature = 0;
+			pxDisk->xStatus.bIsInitialised = pdFALSE;
+		}
+		sd_card_t *pSD = pxDisk->pvTag;
+		configASSERT(pSD);
+		vPortFree( pxDisk );
+		if (pSD->ff_disk_count == 1) {
+			configASSERT(pSD->ff_disks);
+			vPortFree( pSD->ff_disks);
+		}
+		pSD->ff_disk_count--;
+		Cy_GPIO_Write(RedLED_PORT, RedLED_NUM, 1) ;                                        
 	}
 	return pdPASS;
 }
