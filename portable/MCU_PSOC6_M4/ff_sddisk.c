@@ -95,7 +95,17 @@ static bool disk_init(sd_card_t *pSD) {
 		&& (pSD->ff_disks[0])
 		&& (pSD->ff_disks[0]->xStatus.bIsInitialised == pdTRUE))
 	{
-		return true;
+		if (pSD->ff_disks[0]->xStatus.bIsMounted) {
+            // Get rid of any stale information in FS.
+    		FF_PRINTF("Invalidating %s\n", pSD->pcName);     
+			FF_Invalidate(pSD->ff_disks[0]->pxIOManager);   
+            // Unmount if previously mounted.            
+			FF_PRINTF("Unmounting %s\n", pSD->pcName);                                     
+			FF_Unmount(pSD->ff_disks[0]);
+			pSD->ff_disks[0]->xStatus.bIsMounted = pdFALSE;    
+			FF_FlushCache(pSD->ff_disks[0]->pxIOManager);            
+		}
+        return true;
 	}
     // Allocate array of FF_Disk_t pointers:
 	pSD->ff_disks = pvPortMalloc( sizeof( FF_Disk_t *) );
@@ -149,6 +159,8 @@ static bool disk_init(sd_card_t *pSD) {
 	return true;
 }
 
+// Doesn't do an automatic mount, since card might need to be formatted first.
+// State after return is disk is initialized, but not mounted.
 FF_Disk_t *FF_SDDiskInit(const char *pcName) {
 	sd_card_t *pSD = sd_get_by_name(pcName);
 	if (!pSD) {

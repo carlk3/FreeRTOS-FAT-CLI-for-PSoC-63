@@ -19,6 +19,7 @@
 bool format(FF_Disk_t **ppxDisk, const char *const devName);
 bool mount(FF_Disk_t **ppxDisk, const char *const devName, const char *const path);
 void unmount(FF_Disk_t *pxDisk, const char *pcPath);
+void eject(const char *const name);
 
 #endif
 /* [] END OF FILE */

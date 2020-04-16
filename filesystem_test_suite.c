@@ -226,7 +226,7 @@ static BaseType_t runFormat(char *pcWriteBuffer,
 	);
 	/* Sanity check something was returned. */
 	configASSERT(pcParameter);
-	FF_Disk_t *pxDisk;
+	FF_Disk_t *pxDisk = NULL;
 	bool rc = format(&pxDisk, pcParameter);
 	if (!rc)
 		FF_PRINTF("Format failed!\n");
@@ -266,7 +266,7 @@ static BaseType_t runMount(char *pcWriteBuffer,
 
 	char buf[cmdMAX_INPUT_SIZE];
 	snprintf(buf, cmdMAX_INPUT_SIZE, "/%s", pcParameter); // Add '/' for path
-	FF_Disk_t *pxDisk;
+	FF_Disk_t *pxDisk = NULL;
 	bool rc = mount(&pxDisk, pcParameter, buf);
 	if (!rc)
 		FF_PRINTF("Mount failed!\n");
@@ -295,27 +295,10 @@ static BaseType_t runEject(char *pcWriteBuffer,
 		&xParameterStringLength /* Store the parameter string length. */
 	);
 	/* Sanity check something was returned. */
-	configASSERT(pcParameter);
-	sd_card_t *pSD = sd_get_by_name(pcParameter);
-	configASSERT(pSD);
-    size_t i;
-    for (i = 0; i < pSD->ff_disk_count; ++i) {
-    	FF_Disk_t *pxDisk = pSD->ff_disks[i];
-    	if (pxDisk) {
-    		if (pxDisk->xStatus.bIsMounted) {
-    			FF_FlushCache(pxDisk->pxIOManager);
-    			FF_PRINTF("Invalidating %s\n", pSD->pcName);     
-    			FF_Invalidate(pxDisk->pxIOManager);                                
-    			FF_PRINTF("Unmounting %s\n", pSD->pcName);                                     
-    			FF_Unmount(pxDisk);
-    			pxDisk->xStatus.bIsMounted = pdFALSE;    
-    			Cy_GPIO_Write(BlueLED_PORT, BlueLED_NUM, 1) ;     
-    		}       
-            FF_SDDiskDelete(pxDisk);
-        }
-    }
-	sd_deinit(pSD);    
-	Cy_GPIO_Write(RedLED_PORT, RedLED_NUM, 1) ;     
+	configASSERT(pcParameter);    
+	
+	eject(pcParameter);
+	
 	return pdFALSE;
 }
 static const CLI_Command_Definition_t xEject = { 
@@ -373,13 +356,13 @@ static BaseType_t runCreateDiskAndExampleFiles(char *pcWriteBuffer,
 	configASSERT(pcParameter);
 	char buf[cmdMAX_INPUT_SIZE];
 	snprintf(buf, cmdMAX_INPUT_SIZE, "/%s", pcParameter); // Add '/' for path
-	FF_Disk_t *pxDisk;
+	FF_Disk_t *pxDisk = NULL;
 	bool rc = mount(&pxDisk, pcParameter, buf);
 	configASSERT(rc);
 
 	vCreateAndVerifyExampleFiles(buf);
 
-	unmount(pxDisk, buf);
+	// unmount(pxDisk, buf);
 	return pdFALSE;
 }
 static const CLI_Command_Definition_t xExampFiles = { 
@@ -408,7 +391,7 @@ static BaseType_t runStdioWithCWDTest(char *pcWriteBuffer,
 	configASSERT(pcParameter);
 	char buf[cmdMAX_INPUT_SIZE];
 	snprintf(buf, cmdMAX_INPUT_SIZE, "/%s", pcParameter); // Add '/' for path
-	FF_Disk_t *pxDisk;
+	FF_Disk_t *pxDisk = NULL;
 	bool rc = mount(&pxDisk, pcParameter, buf);
 	configASSERT(rc);
 
@@ -420,7 +403,7 @@ static BaseType_t runStdioWithCWDTest(char *pcWriteBuffer,
 	
 	vStdioWithCWDTest(buf);
 
-	unmount(pxDisk, buf);
+	//unmount(pxDisk, buf);
 	return pdFALSE;
 }
 static const CLI_Command_Definition_t xStdioWithCWDTest = { 
@@ -449,16 +432,16 @@ static BaseType_t runMultiTaskStdioWithCWDTest(char *pcWriteBuffer,
 	configASSERT(pcParameter);
 	char buf[cmdMAX_INPUT_SIZE];
 	snprintf(buf, cmdMAX_INPUT_SIZE, "/%s", pcParameter); // Add '/' for path
-	FF_Disk_t *pxDisk;
+	FF_Disk_t *pxDisk = NULL;
 	bool rc = mount(&pxDisk, pcParameter, buf);
 	configASSERT(rc);
 
 	// Clear out leftovers from earlier runs
-    size_t i;
-    for (i=0; i <= 4; ++i) {
-	    snprintf(buf, cmdMAX_INPUT_SIZE, "/%s/%u", pcParameter, i); 
-	    ff_deltree(buf);
-    }
+	size_t i;
+	for (i=0; i <= 4; ++i) {
+		snprintf(buf, cmdMAX_INPUT_SIZE, "/%s/%u", pcParameter, i); 
+		ff_deltree(buf);
+	}
 	snprintf(buf, cmdMAX_INPUT_SIZE, "/%s", pcParameter); // Add '/' for path    
 	vMultiTaskStdioWithCWDTest(buf, 1024);
 
@@ -489,13 +472,13 @@ static BaseType_t runSimpleFSTest(char *pcWriteBuffer,
 	/* Sanity check something was returned. */
 	configASSERT(pcParameter);
 
-	FF_Disk_t *pxDisk;    
+	FF_Disk_t *pxDisk = NULL;    
 	bool rc = mount(&pxDisk, pcParameter, "/fs");
 	configASSERT(rc);
 
 	prvSimpleTest();    
 
-	unmount(pxDisk, "/fs");
+//	unmount(pxDisk, "/fs");
 	return pdFALSE;
 }
 static const CLI_Command_Definition_t xSimpleFSTest = { 
@@ -507,57 +490,46 @@ static const CLI_Command_Definition_t xSimpleFSTest = {
 		1 /* One parameter is expected. */
 };
 /*-----------------------------------------------------------*/
-static BaseType_t prvBigFileTest( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
-{
-(void) pcWriteBuffer;   
-(void) xWriteBufferLen;
-char *pcPathName;     
-const char *pcSeed, *pcSize;
-size_t size; 
-uint32_t seed;
-BaseType_t xParameterStringLength;
+static BaseType_t prvBigFileTest(char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString) {
+	(void) pcWriteBuffer;
+	(void) xWriteBufferLen;
+	char *pcPathName;
+	const char *pcSeed, *pcSize;
+	size_t size;
+	uint32_t seed;
+	BaseType_t xParameterStringLength;
 
 	/* Obtain the seed. */
-	pcSeed = FreeRTOS_CLIGetParameter
-						(
-							pcCommandString,		/* The command string itself. */
-							3,						/* Return the third parameter. */
-							&xParameterStringLength	/* Store the parameter string length. */
-						);
-
+	pcSeed = FreeRTOS_CLIGetParameter(pcCommandString, /* The command string itself. */
+    	3, /* Return the third parameter. */
+    	&xParameterStringLength /* Store the parameter string length. */
+    	);
 	/* Sanity check something was returned. */
-	configASSERT( pcSeed );
+	configASSERT(pcSeed);
 	seed = atoi(pcSeed);
-	
-	/* Obtain the file size. */
-	pcSize = FreeRTOS_CLIGetParameter
-						(
-							pcCommandString,		/* The command string itself. */
-							2,						/* Return the second parameter. */
-							&xParameterStringLength	/* Store the parameter string length. */
-						);
 
+	/* Obtain the file size. */
+	pcSize = FreeRTOS_CLIGetParameter(pcCommandString, /* The command string itself. */
+    	2, /* Return the second parameter. */
+    	&xParameterStringLength /* Store the parameter string length. */
+    	);
 	/* Sanity check something was returned. */
-	configASSERT( pcSize );
+	configASSERT(pcSize);
 	size = strtoul(pcSize, 0, 0);
-	
 
 	/* Obtain the pathname. */
-	pcPathName = ( char * ) FreeRTOS_CLIGetParameter
-								(
-									pcCommandString,		/* The command string itself. */
-									1,						/* Return the first parameter. */
-									&xParameterStringLength	/* Store the parameter string length. */
-								);
-
+	pcPathName = (char *) FreeRTOS_CLIGetParameter(pcCommandString, /* The command string itself. */
+    	1, /* Return the first parameter. */
+    	&xParameterStringLength /* Store the parameter string length. */
+    	);
 	/* Sanity check something was returned. */
-	configASSERT( pcPathName );
+	configASSERT(pcPathName);
 
 	/* Terminate the string. */
-	pcPathName[ xParameterStringLength ] = 0x00;
+	pcPathName[xParameterStringLength] = 0x00;
 
-	big_file_test(pcPathName, size, seed);        
-	
+	big_file_test(pcPathName, size, seed);
+
 	return pdFALSE;
 }
 /* Structure that defines the COPY command line command, which deletes a file. */

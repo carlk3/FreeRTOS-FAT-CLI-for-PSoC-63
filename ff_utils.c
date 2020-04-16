@@ -13,6 +13,7 @@
 #include "ff_headers.h"
 #include "ff_sddisk.h"
 #include "ff_stdio.h"
+#include "hw_config.h"
 
 #include "ff_utils.h"
 
@@ -63,16 +64,23 @@ bool format(FF_Disk_t **ppxDisk, const char *const devName) {
 }
 
 bool mount(FF_Disk_t **ppxDisk, const char *const devName, const char *const path) {
-	*ppxDisk = FF_SDDiskInit( devName );
+    configASSERT(ppxDisk);
+	if (!(*ppxDisk)
+		|| !(*ppxDisk)->xStatus.bIsInitialised)
+	{
+    	*ppxDisk = FF_SDDiskInit( devName );
+    }
 	if (!*ppxDisk) {
 		return false;
-	}
-	// BaseType_t FF_SDDiskMount( FF_Disk_t *pDisk );
-	FF_Error_t xError = FF_SDDiskMount(*ppxDisk);
-	if (FF_isERR( xError ) != pdFALSE) {
-		FF_PRINTF("FF_SDDiskMount: %s\n", (const char *) FF_GetErrMessage(xError));
-		return false;
-	}
+	}    
+	if (!(*ppxDisk)->xStatus.bIsMounted) {
+    	// BaseType_t FF_SDDiskMount( FF_Disk_t *pDisk );
+    	FF_Error_t xError = FF_SDDiskMount(*ppxDisk);
+    	if (FF_isERR( xError ) != pdFALSE) {
+    		FF_PRINTF("FF_SDDiskMount: %s\n", (const char *) FF_GetErrMessage(xError));
+    		return false;
+    	}
+    }
 	return FF_FS_Add( path, *ppxDisk );
 }
 void unmount(FF_Disk_t *pxDisk, const char *pcPath) {
@@ -83,8 +91,32 @@ void unmount(FF_Disk_t *pxDisk, const char *pcPath) {
 	if (FF_isERR( xError ) != pdFALSE) {
 		FF_PRINTF("FF_Unmount: %s\n", (const char *) FF_GetErrMessage(xError));
 	}
-	FF_SDDiskDelete(pxDisk);
-	pxDisk = 0;
-    
+	// FF_SDDiskDelete(pxDisk);    
+}
+
+void eject(const char *const name) {
+	sd_card_t *pSD = sd_get_by_name(name);
+	if (!pSD) {
+        FF_PRINTF("Unknown device name %s\n", name);
+        return;
+    }
+    size_t i;
+    for (i = 0; i < pSD->ff_disk_count; ++i) {
+    	FF_Disk_t *pxDisk = pSD->ff_disks[i];
+    	if (pxDisk) {
+    		if (pxDisk->xStatus.bIsMounted) {
+    			FF_FlushCache(pxDisk->pxIOManager);
+    			FF_PRINTF("Invalidating %s\n", pSD->pcName);     
+    			FF_Invalidate(pxDisk->pxIOManager);                                
+    			FF_PRINTF("Unmounting %s\n", pSD->pcName);                                     
+    			FF_Unmount(pxDisk);
+    			pxDisk->xStatus.bIsMounted = pdFALSE;    
+    			Cy_GPIO_Write(BlueLED_PORT, BlueLED_NUM, 1) ;     
+    		}       
+            FF_SDDiskDelete(pxDisk);
+        }
+    }
+	sd_deinit(pSD);    
+	Cy_GPIO_Write(RedLED_PORT, RedLED_NUM, 1) ;         
 }
 /* [] END OF FILE */
