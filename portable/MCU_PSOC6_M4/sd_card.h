@@ -71,7 +71,7 @@ int sd_read_blocks(sd_card_t *this, uint8_t *buffer, uint64_t ulSectorNumber, ui
 bool sd_card_detect(sd_card_t *this);
 uint64_t sd_sectors(sd_card_t *this);
 
-void card_detect_ISR(sd_card_t *this); 
+void card_detect_ISR(sd_card_t *this, size_t card_num); 
 
 #endif
 /* [] END OF FILE */

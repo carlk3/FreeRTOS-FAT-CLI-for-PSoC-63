@@ -150,6 +150,7 @@
 #include <string.h>
 
 #include "FreeRTOSFATConfig.h" // for DBG_PRINTF
+#include "ff_sddisk.h" // for FF_SDDiskDelete
 
 #include "sd_spi.h"
 #include "sd_card.h"
@@ -658,8 +659,8 @@ uint64_t sd_sectors(sd_card_t *this) {
 		blocks = (hc_c_size + 1) << 10; // block count = C_SIZE+1) * 1K byte (512B is block size)
 		DBG_PRINTF("SDHC/SDXC Card: hc_c_size: %" PRIu32 "\n", hc_c_size);
 		uint32_t b = blocks;
-		DBG_PRINTF("Sectors: %8lu\n", b);
-		DBG_PRINTF("Capacity: %8lu MB\n", (b / (2048U)));
+		DBG_PRINTF("Sectors: %8lu\n", (unsigned long)b);
+		DBG_PRINTF("Capacity: %8lu MB\n", (unsigned long)(b / (2048U)));
 		break;
 
 	default:
@@ -705,11 +706,7 @@ static void CardDetectTask(void *arg) {
     						pxDisk->xStatus.bIsMounted = pdFALSE;    
     						Cy_GPIO_Write(BlueLED_PORT, BlueLED_NUM, 1) ;   
     					}
-    					if (pxDisk->xStatus.bIsInitialised) {
-    						if (pxDisk->pxIOManager)
-    							FF_DeleteIOManager(pxDisk->pxIOManager);
-    						pxDisk->xStatus.bIsInitialised = pdFALSE;
-    					}
+                        FF_SDDiskDelete(pxDisk);
     					sd_deinit(pSD);                                                    
     				}  
     			}
@@ -1054,7 +1051,7 @@ int sd_write_blocks(sd_card_t *this, const uint8_t *buffer, uint64_t ulSectorNum
 	return status;
 }
 
-void card_detect_ISR(sd_card_t *this) {
+void card_detect_ISR(sd_card_t *this, size_t card_num) {
 	/* Clears the triggered pin interrupt */
 	NVIC_ClearPendingIRQ(this->card_detect_int_cfg->intrSrc);  
 	
@@ -1064,7 +1061,7 @@ void card_detect_ISR(sd_card_t *this) {
 		//                         uint32_t ulValue,
 		//                         eNotifyAction eAction );    
 		// Here, the ulValue is the card number.
-		BaseType_t rc = xTaskNotifyFromISR(this->card_detect_task, 0, 
+		BaseType_t rc = xTaskNotifyFromISR(this->card_detect_task, card_num, 
 			eSetValueWithOverwrite, &xHigherPriorityTaskWoken);
 		configASSERT(pdPASS == rc);
 		/* Force a context switch if xHigherPriorityTaskWoken is now set to pdTRUE. */

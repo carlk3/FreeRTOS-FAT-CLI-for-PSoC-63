@@ -40,7 +40,7 @@ which SPI it is driven by, and how it is wired.
 void SPI_1_handle_event(uint32_t event);
 
 // Card Detect Port Interrupt Service Routines
-void Card_Detect_ISR();
+void SDCard_detect_ISR();
 
 // Hardware Configuration of SPI "objects"
 // Note: multiple SD cards can be driven by one SPI if they use different slave selects.
@@ -56,6 +56,7 @@ static spi_t spi[] = { // One for each SPI.
 		.intcfg = &SPI_1_SCB_IRQ_cfg, // Interrupt
 		.userIsr = &SPI_1_Interrupt, // Interrupt
 		.callback = SPI_1_handle_event, // Interrupt callback
+        // Following attributes are dynamically assigned
 		.initialized = false, //initialized flag
 		.owner = 0, // Owning task, assigned dynamically
 		.mutex = 0  // Guard semaphore, assigned dynamically
@@ -70,10 +71,11 @@ static sd_card_t sd_cards[] = { 	// One for each SD card
 		.ss = SPI_1_SPI_SLAVE_SELECT0, // The SPI slave select line for this SD card
 		.card_detect_gpio_port = Card_Detect_PORT, // Card detect
 		.card_detect_gpio_num = Card_Detect_NUM, // Card detect
+		.card_detected_true = 0, // truth (card is present) is 0         
 		.card_detect_int_cfg = &Card_Detect_Interrupt_cfg,
-		.card_detect_ISR = Card_Detect_ISR,
+		.card_detect_ISR = SDCard_detect_ISR,
+        // Following attributes are dynamically assigned
 		.card_detect_task = 0,
-		.card_detected_true = 0, // truth (card is present) is 0 
 		.m_Status = STA_NOINIT, 
 		.sectors = 0, 
 		.card_type = 0, 
@@ -83,7 +85,6 @@ static sd_card_t sd_cards[] = { 	// One for each SD card
 	}	
 };
 
-
 // Callback function called in the Cy_SCB_SPI_Interrupt to notify the user about occurrences of SPI Callback Events.
 // Each SPI has its own interrupt and callback.
 // Notifies task when a transfer is complete.
@@ -91,8 +92,8 @@ void SPI_1_handle_event(uint32_t event) {
     SPI_handle_event(&spi[0], event);
 }
 
-void Card_Detect_ISR() {
-    card_detect_ISR(&sd_cards[0]);
+void SDCard_detect_ISR() {
+    card_detect_ISR(&sd_cards[0], 0);
 }
 
 /* ********************************************************************** */
