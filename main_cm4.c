@@ -100,8 +100,9 @@ void my_printf(const char *pcFormat, ...) {
 	vsnprintf(pcBuffer, sizeof(pcBuffer), pcFormat, xArgs);
 	va_end(xArgs); 
     fflush(stdout);
-    printf("%p, %s: %s", xTaskGetCurrentTaskHandle(),
-			pcTaskGetName(xTaskGetCurrentTaskHandle()), pcBuffer);
+//    printf("%p, %s: %s", xTaskGetCurrentTaskHandle(),
+//			pcTaskGetName(xTaskGetCurrentTaskHandle()), pcBuffer);
+    printf("%s", pcBuffer);
     fflush(stdout);    
 }
 

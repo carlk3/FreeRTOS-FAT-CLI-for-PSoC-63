@@ -21,6 +21,7 @@
 
 #include "spi.h"
 #include "sd_card.h"
+#include "sd_spi.h"
 
 // Lock the SPI and set SS appropriately for this SD Card
 // Note: The Cy_SCB_SPI_SetActiveSlaveSelect really only needs to be done here if multiple SDs are on the same SPI.
@@ -35,11 +36,12 @@ void sd_spi_acquire(sd_card_t *this) {
 	//  or slave communicates with the master) may cause transfer corruption
 	//  because the hardware stops driving the outputs and ignores the inputs.
 	//  Ensure that the SPI is not busy before calling this function.
-//    while (Cy_SCB_SPI_IsBusBusy(this->spi->base));
+    configASSERT(!Cy_SCB_SPI_IsBusBusy(this->spi->base));
 	Cy_SCB_SPI_SetActiveSlaveSelect(this->spi->base, this->ss);
 }
 void sd_spi_release(sd_card_t *this) {
-	this->spi->owner = 0;
+    configASSERT(!Cy_SCB_SPI_IsBusBusy(this->spi->base));    
+	this->spi->owner = 0;    
 	xSemaphoreGiveRecursive(this->spi->mutex);
 }
 
@@ -120,88 +122,132 @@ void sd_spi_go_low_frequency(sd_card_t *this) {
 // SPI Transfer: Read & Write (simultaneously) on SPI bus
 //   If the data that will be received is not important, pass NULL as rx.
 //   If the data that will be transmitted is not important,
-//     pass NULL as tx and then the CY_SCB_SPI_DEFAULT_TX is sent out as each data element.
+//     pass NULL as tx and then the SPI_FILL_CHAR is sent out as each data element.
 bool sd_spi_transfer(sd_card_t *this, const uint8_t *tx, uint8_t *rx, size_t length) {
-	cy_en_scb_spi_status_t errorStatus;
-	uint32_t masterStatus;
 	BaseType_t rc;
-
+    uint8_t dummy[512];
+    
+    configASSERT(512 == length);    
+    configASSERT(tx || rx);
+    
+    if (!tx) {
+        memset(dummy, 0xFF, length);
+        tx = &dummy[0];
+    }
+    if (!rx) {
+        rx = &dummy[0];
+    }
 	sd_spi_acquire(this);
 
+    configASSERT(!Cy_SCB_SPI_IsBusBusy(this->spi->base));        
+    configASSERT(!Cy_SCB_SPI_GetNumInTxFifo(this->spi->base));
+    Cy_SCB_SPI_ClearTxFifoStatus(this->spi->base, CY_SCB_SPI_TX_TRIGGER);
+
+    configASSERT(!Cy_SCB_SPI_GetNumInRxFifo(this->spi->base));       
+    Cy_SCB_SPI_ClearRxFifoStatus(this->spi->base, CY_SCB_SPI_RX_TRIGGER);
+    
+    Cy_SCB_SPI_ClearRxFifo(this->spi->base);
+    Cy_SCB_SPI_ClearTxFifo(this->spi->base);    
+    
 	/* Ensure this task does not already have a notification pending by calling
 	 ulTaskNotifyTake() with the xClearCountOnExit parameter set to pdTRUE, and a block time of 0
 	 (don't block). */
 	rc = ulTaskNotifyTake(pdTRUE, 0);
 	configASSERT(!rc);
 
-	/* Initiate SPI Master write and read transaction. */
-	errorStatus = Cy_SCB_SPI_Transfer(this->spi->base, (void *) tx, rx, length, this->spi->context);
-
-	/* If no error wait till master sends data in Tx FIFO */
-	if ((errorStatus != CY_SCB_SPI_SUCCESS)
-			&& (errorStatus != CY_SCB_SPI_TRANSFER_BUSY)) {
-		DBG_PRINTF("Cy_SCB_SPI_Transfer failed. Status: 0x%02x\n", errorStatus);
-		configASSERT(false);
-		sd_spi_release(this);
-		return false;
-	}
+    spi_dma_transfer(this->spi, length, tx, rx);    
 
 	/* Timeout 1 sec */
-	uint32_t timeOut = 1000UL;
+	uint32_t timeOut = 1000;
 
-	/* Wait until master completes transfer or time out has occured */
+	/* Wait until master completes transfer or time out has occured. */
+	/* Wait 2x, for RX and SPI to complete. */            
 	// uint32_t ulTaskNotifyTake( BaseType_t xClearCountOnExit, TickType_t xTicksToWait );   
 	rc = ulTaskNotifyTake(pdFALSE, pdMS_TO_TICKS(timeOut)); // Wait for notification from ISR
 	if (!rc) {
 		// This indicates that xTaskNotifyWait() returned without the calling task receiving a task notification.
 		// The calling task will have been held in the Blocked state to wait for its notification state to become pending, 
 		// but the specified block time expired before that happened.
-		DBG_PRINTF("Task %s timed out\n",
-				pcTaskGetName(xTaskGetCurrentTaskHandle()));
-		Cy_SCB_SPI_AbortTransfer(this->spi->base, this->spi->context);
-		Cy_SCB_SPI_ClearRxFifo(this->spi->base);
+		DBG_PRINTF("Task %s timed out in %s\n",
+				pcTaskGetName(xTaskGetCurrentTaskHandle()), __FUNCTION__);
+    	sd_spi_release(this);        
 		return false;
-	}
-	while (CY_SCB_SPI_TRANSFER_ACTIVE
-			& Cy_SCB_SPI_GetTransferStatus(this->spi->base, this->spi->context))
-		; // Spin
-	masterStatus = Cy_SCB_SPI_GetTransferStatus(this->spi->base, this->spi->context);
-	if (MASTER_ERROR_MASK & masterStatus) {
-		DBG_PRINTF("SPI_Transfer failed. Status: 0x%02lx\n", masterStatus);
-		configASSERT(!(MASTER_ERROR_MASK & masterStatus));
-		sd_spi_release(this);
+	}    
+	rc = ulTaskNotifyTake(pdFALSE, pdMS_TO_TICKS(timeOut)); // Wait for notification from ISR
+	if (!rc) {
+		// This indicates that xTaskNotifyWait() returned without the calling task receiving a task notification.
+		// The calling task will have been held in the Blocked state to wait for its notification state to become pending, 
+		// but the specified block time expired before that happened.
+		DBG_PRINTF("Task %s timed out in %s\n",
+				pcTaskGetName(xTaskGetCurrentTaskHandle()), __FUNCTION__);
+    	sd_spi_release(this);        
 		return false;
-	}
-	uint32_t nxf = Cy_SCB_SPI_GetNumTransfered(this->spi->base, this->spi->context);
-	if (nxf != length) {
-		DBG_PRINTF("SPI_Transfer failed. length=%u NumTransfered=%lu.\n", length, nxf);
-		sd_spi_release(this);
-		configASSERT(false);
-		return false;
-	}
+	}        
 	// There should be no more notifications pending:
 	configASSERT(!ulTaskNotifyTake(pdTRUE, 0));
-
+    configASSERT(CY_DMA_CHANNEL_DISABLED == Cy_DMA_Descriptor_GetChannelState(this->spi->txDma_Descriptor_1));
+    configASSERT(Cy_SCB_SPI_IsTxComplete(this->spi->base));
+    configASSERT(!Cy_SCB_SPI_IsBusBusy(this->spi->base));        
+    configASSERT(0 == Cy_SCB_SPI_GetNumInRxFifo(this->spi->base));    
+    configASSERT(0 == Cy_SCB_SPI_GetNumInTxFifo(this->spi->base));    
+    
 	sd_spi_release(this);
 	return true;
 }
 
 uint8_t sd_spi_write(sd_card_t *this, const uint8_t value) {
-	uint8_t received = 0xFF;
+	uint8_t received   = 0xFF;
 
-	// static bool sd_spi_transfer(sd_t *this, const uint8_t *tx, uint8_t *rx, size_t length)
-	bool rc = sd_spi_transfer(this, (void *) &value, &received, 1);
-	configASSERT(rc);
+	sd_spi_acquire(this);
 
+    configASSERT(!Cy_SCB_SPI_IsBusBusy(this->spi->base));
+    configASSERT(!Cy_SCB_SPI_GetNumInTxFifo(this->spi->base));    
+    configASSERT(!Cy_SCB_SPI_GetNumInRxFifo(this->spi->base));        
+
+    Cy_SCB_SPI_ClearRxFifo(this->spi->base);
+    Cy_SCB_SPI_ClearTxFifo(this->spi->base);
+    
+	/* Ensure this task does not already have a notification pending by calling
+	 ulTaskNotifyTake() with the xClearCountOnExit parameter set to pdTRUE, and a block time of 0
+	 (don't block). */
+	BaseType_t rc = ulTaskNotifyTake(pdTRUE, 0);
+	configASSERT(!rc);    
+    
+    uint32_t n = Cy_SCB_SPI_Write(this->spi->base, value);
+    configASSERT(1 == n);
+    
+	/* Timeout 1 sec */
+	uint32_t timeOut = 1000UL;
+
+	/* Wait until master completes transfer or time out has occured. */
+	// uint32_t ulTaskNotifyTake( BaseType_t xClearCountOnExit, TickType_t xTicksToWait );   
+	rc = ulTaskNotifyTake(pdFALSE, pdMS_TO_TICKS(timeOut)); // Wait for notification from ISR
+	if (!rc) {
+		// This indicates that xTaskNotifyWait() returned without the calling task receiving a task notification.
+		// The calling task will have been held in the Blocked state to wait for its notification state to become pending, 
+		// but the specified block time expired before that happened.
+		DBG_PRINTF("Task %s timed out in %s\n",
+				pcTaskGetName(xTaskGetCurrentTaskHandle()), __FUNCTION__);
+        
+	    sd_spi_release(this);
+		return false;
+	}
+    // There should be no more notifications pending:
+	configASSERT(!ulTaskNotifyTake(pdTRUE, 0));
+    
+    configASSERT(Cy_SCB_SPI_IsTxComplete(this->spi->base));
+    configASSERT(!Cy_SCB_SPI_IsBusBusy(this->spi->base));    
+    configASSERT(1 == Cy_SCB_SPI_GetNumInRxFifo(this->spi->base));
+    
+    n = Cy_SCB_SPI_Read(this->spi->base);
+    configASSERT(CY_SCB_SPI_RX_NO_DATA != n);
+    received = n;
+    
+    configASSERT(0 == Cy_SCB_SPI_GetNumInTxFifo(this->spi->base));        
+    configASSERT(0 == Cy_SCB_SPI_GetNumInRxFifo(this->spi->base));    
+    
+	sd_spi_release(this);    
 	return received;
-}
-
-bool sd_spi_write_block(sd_card_t *this, const uint8_t *tx_buffer, size_t length) {
-
-	// bool spi_transfer(const uint8_t *tx, uint8_t *rx, size_t length)
-	bool ret = sd_spi_transfer(this, tx_buffer, NULL, length);
-
-	return ret;
 }
 
 /* [] END OF FILE */

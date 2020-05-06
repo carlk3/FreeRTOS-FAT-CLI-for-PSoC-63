@@ -36,17 +36,11 @@
 extern void vRegisterCLICommands(void);
 extern void vRegisterFileSystemCLICommands(void);
 
-extern void run_ew_demo(void);
-extern void Data_Logging_Start();
-
 bool die_now = false; // Used outside here
 
 static SemaphoreHandle_t xUartCountingSemaphore;
 
 static void UART_handle_event(uint32_t event) {
-
-	uint32_t rsta = Cy_SCB_UART_GetReceiveStatus(UART_1_HW, &UART_1_context);
-	configASSERT(!rsta);
 
 	if (CY_SCB_UART_RECEIVE_DONE_EVENT == event) {
 		/* The xHigherPriorityTaskWoken parameter must be initialized to pdFALSE as
@@ -274,6 +268,13 @@ static BaseType_t date(char *pcWriteBuffer, size_t xWriteBufferLen, const char *
 	(void) xWriteBufferLen;
 
 	PrintDateTime();
+
+	time_t epoch_secs = FreeRTOS_time(NULL);
+	struct tm *ptm = localtime(&epoch_secs);    
+    char dbuf[4] = {0};    
+	size_t n = strftime(dbuf, sizeof(dbuf), "%j", ptm);    //The day of the year as a decimal number (range 001 to 366).
+	configASSERT(sizeof(dbuf) - 1 == n);       
+    printf("Day of year: %s\n", dbuf);
 
 	return pdFALSE;
 }

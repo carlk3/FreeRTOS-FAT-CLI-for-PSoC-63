@@ -37,7 +37,11 @@ which SPI it is driven by, and how it is wired.
 #include "hw_config.h"
 
 // SPI Interrupt callbacks
-void SPI_1_handle_event(uint32_t event);
+void SPI_1_ISR();
+
+// SPI DMA Interrupts
+void SPI_1_RxDmaComplete();
+void SPI_1_TxDmaComplete();
 
 // Card Detect Port Interrupt Service Routines
 void SDCard_detect_ISR();
@@ -54,9 +58,32 @@ static spi_t spi[] = { // One for each SPI.
 		.spi_miso_port = SPI_1_miso_m_0_PORT, // Refer to Design Wide Resouces, Pins, in the .cydwr file
 		.spi_miso_num = SPI_1_miso_m_0_NUM, // MISO GPIO pin number for pull-up (see cyfitter_gpio.h)
 		.intcfg = &SPI_1_SCB_IRQ_cfg, // Interrupt
-		.userIsr = &SPI_1_Interrupt, // Interrupt
-		.callback = SPI_1_handle_event, // Interrupt callback
-        // Following attributes are dynamically assigned
+		.userIsr = &SPI_1_ISR, // Interrupt
+		.rxDma_base = rxDma_1_HW,
+		.rxDma_channel = rxDma_1_DW_CHANNEL,
+		.rxDma_Descriptor_1 = &rxDma_1_Descriptor_1,
+		.rxDma_Descriptor_1_config = &rxDma_1_Descriptor_1_config,
+		.rxDma_channelConfig = {
+			&rxDma_1_Descriptor_1,
+			rxDma_1_PREEMPTABLE,
+			rxDma_1_PRIORITY,
+			.enable = false,
+			rxDma_1_BUFFERABLE},
+		.intRxDma_ISR = SPI_1_RxDmaComplete,
+		.intRxDma_cfg = &intRxDma_1_cfg,
+		.txDma_base = txDma_1_HW,
+		.txDma_channel = txDma_1_DW_CHANNEL,
+		.txDma_Descriptor_1 = &txDma_1_Descriptor_1,
+		.txDma_Descriptor_1_config = &txDma_1_Descriptor_1_config,
+		.txDma_channelConfig = {
+			&txDma_1_Descriptor_1,
+			txDma_1_PREEMPTABLE,
+			txDma_1_PRIORITY,
+			.enable = false,
+			txDma_1_BUFFERABLE},        
+		.intTxDma_ISR = SPI_1_TxDmaComplete,        
+		.intTxDma_cfg = &intTxDma_1_cfg,        
+		// Following attributes are dynamically assigned
 		.initialized = false, //initialized flag
 		.owner = 0, // Owning task, assigned dynamically
 		.mutex = 0  // Guard semaphore, assigned dynamically
@@ -74,13 +101,13 @@ static sd_card_t sd_cards[] = { 	// One for each SD card
 		.card_detected_true = 0, // truth (card is present) is 0         
 		.card_detect_int_cfg = &Card_Detect_Interrupt_cfg,
 		.card_detect_ISR = SDCard_detect_ISR,
-        // Following attributes are dynamically assigned
+		// Following attributes are dynamically assigned
 		.card_detect_task = 0,
 		.m_Status = STA_NOINIT, 
 		.sectors = 0, 
 		.card_type = 0, 
 		.mutex = 0,
-        .ff_disk_count = 0,
+		.ff_disk_count = 0,
 		.ff_disks = NULL
 	}	
 };
@@ -88,12 +115,20 @@ static sd_card_t sd_cards[] = { 	// One for each SD card
 // Callback function called in the Cy_SCB_SPI_Interrupt to notify the user about occurrences of SPI Callback Events.
 // Each SPI has its own interrupt and callback.
 // Notifies task when a transfer is complete.
-void SPI_1_handle_event(uint32_t event) {
-    SPI_handle_event(&spi[0], event);
+void SPI_1_ISR() {
+	spi_ISR(&spi[0]);
+}
+
+void SPI_1_RxDmaComplete() {
+	spi_RxDmaComplete(&spi[0]);
+}
+
+void SPI_1_TxDmaComplete() {
+	spi_TxDmaComplete(&spi[0]);
 }
 
 void SDCard_detect_ISR() {
-    card_detect_ISR(&sd_cards[0], 0);
+	card_detect_ISR(&sd_cards[0], 0);
 }
 
 /* ********************************************************************** */
