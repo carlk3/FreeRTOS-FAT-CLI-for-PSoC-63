@@ -762,7 +762,7 @@
     <Data key="CYDEV_TEMPERATURE" value="-40C" />
     <Data key="CYDEV_TRACE_ENABLED" value="False" />
     <Data key="CYDEV_VARIABLE_VDDA" value="False" />
-    <Data key="CYDEV_VBAC_SUPPLY" value="VDDD" />
+    <Data key="CYDEV_VBAC_SUPPLY" value="DEDICATED" />
     <Data key="CYDEV_VBACKUP" value="3.3" />
     <Data key="CYDEV_VDD_NS" value="3.3" />
     <Data key="CYDEV_VDDA" value="3.3" />

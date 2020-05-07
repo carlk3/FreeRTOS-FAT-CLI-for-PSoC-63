@@ -176,7 +176,7 @@ static void uartTask(void *arg) {
 //
 
 /*-----------------------------------------------------------*/
-static BaseType_t die(char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString) {
+static BaseType_t die_fn(char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString) {
 	(void) pcCommandString;
 	(void) pcWriteBuffer;
 	(void) xWriteBufferLen;
@@ -188,7 +188,7 @@ static BaseType_t die(char *pcWriteBuffer, size_t xWriteBufferLen, const char *p
 static const CLI_Command_Definition_t xDie = { 
     "die", /* The command string to type. */
     "\ndie:\n Kill background tasks\n", 
-    die, /* The function to run. */
+    die_fn, /* The function to run. */
     0 /* No parameters are expected. */
 };
 /*-----------------------------------------------------------*/
@@ -262,19 +262,25 @@ static const CLI_Command_Definition_t xSetRTC = {
     6 /* parameters are expected. */
 };
 /*-----------------------------------------------------------*/
+static void printDateTime() {
+    char buf[128] = {0};    
+
+//	PrintDateTime();
+    
+	time_t epoch_secs = FreeRTOS_time(NULL);
+	struct tm *ptm = localtime(&epoch_secs);    
+    size_t n = strftime(buf, sizeof(buf), "%c", ptm);    
+	configASSERT(n); 
+    printf("%s\n", buf);
+	strftime(buf, sizeof(buf), "%j", ptm);    //The day of the year as a decimal number (range 001 to 366).
+    printf("Day of year: %s\n", buf);    
+}
 static BaseType_t date(char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString) {
 	(void) pcCommandString;
 	(void) pcWriteBuffer;
 	(void) xWriteBufferLen;
 
-	PrintDateTime();
-
-	time_t epoch_secs = FreeRTOS_time(NULL);
-	struct tm *ptm = localtime(&epoch_secs);    
-    char dbuf[4] = {0};    
-	size_t n = strftime(dbuf, sizeof(dbuf), "%j", ptm);    //The day of the year as a decimal number (range 001 to 366).
-	configASSERT(sizeof(dbuf) - 1 == n);       
-    printf("Day of year: %s\n", dbuf);
+    printDateTime();
 
 	return pdFALSE;
 }
@@ -324,6 +330,7 @@ void CLI_Start() {
 	Cy_SCB_UART_Enable(UART_1_HW);
 
 	printf("\033[2J\033[H"); // Clear Screen
+    printDateTime();       
 	printf("\nFree RTOS+CLI> ");
 	fflush(stdout);
 
