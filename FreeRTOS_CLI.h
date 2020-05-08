@@ -15,7 +15,7 @@
  * FreeRTOS+CLI is a free download and may be used, modified, evaluated and
  * distributed without charge provided the user adheres to version two of the
  * GNU General Public License (GPL) and does not remove the copyright notice or
- * pSD text.  The GPL V2 text is available on the gnu.org web site, and on the
+ * this text.  The GPL V2 text is available on the gnu.org web site, and on the
  * following URL: http://www.FreeRTOS.org/gpl-2.0.txt.
  *
  * - Commercial licensing -
@@ -51,7 +51,7 @@ the user (from which parameters can be extracted).*/
 typedef BaseType_t (*pdCOMMAND_LINE_CALLBACK)( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString );
 
 /* The structure that defines command line commands.  A command line command
-should be defined by declaring a const structure of pSD type. */
+should be defined by declaring a const structure of this type. */
 typedef struct xCOMMAND_LINE_INPUT
 {
 	const char * const pcCommand;				/* The command that causes pxCommandInterpreter to be executed.  For example "help".  Must be all lower case. */

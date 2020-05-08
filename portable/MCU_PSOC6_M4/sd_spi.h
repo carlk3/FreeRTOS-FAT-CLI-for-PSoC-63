@@ -15,8 +15,6 @@
 
 #include <stdint.h>
 #include <sd_card.h>
-    
-#define SPI_FILL_CHAR         (0xFF)  
 
 bool sd_spi_transfer(sd_card_t *this, const uint8_t *tx, uint8_t *rx, size_t length);
 uint8_t sd_spi_write(sd_card_t *this, const uint8_t value);

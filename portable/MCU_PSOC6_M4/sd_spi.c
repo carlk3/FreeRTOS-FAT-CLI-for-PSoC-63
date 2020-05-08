@@ -125,19 +125,11 @@ void sd_spi_go_low_frequency(sd_card_t *this) {
 //     pass NULL as tx and then the SPI_FILL_CHAR is sent out as each data element.
 bool sd_spi_transfer(sd_card_t *this, const uint8_t *tx, uint8_t *rx, size_t length) {
 	BaseType_t rc;
-	uint8_t dummy[512];
 	
 	configASSERT(512 == length);    
 	configASSERT(tx || rx);
-	
-	if (!tx) {
-		memset(dummy, 0xFF, length);
-		tx = &dummy[0];
-	}
-	if (!rx) {
-		rx = &dummy[0];
-	}
-	sd_spi_acquire(this);
+
+    sd_spi_acquire(this);
 
 	configASSERT(!Cy_SCB_SPI_IsBusBusy(this->spi->base));        
 	configASSERT(!Cy_SCB_SPI_GetNumInTxFifo(this->spi->base));

@@ -10,6 +10,8 @@
  * ========================================
  */
 
+#include <string.h>
+
 #include "project.h"
 #include "spi.h"
 
@@ -111,7 +113,7 @@ void spi_TxDmaComplete(spi_t *this) {
 	/* Clear tx DMA interrupt */
 	Cy_DMA_Channel_ClearInterrupt(this->txDma_base, this->txDma_channel);            
 
-    // No notification here, since if RX is complete, we can assume TX must be.
+	// No notification here, since if RX is complete, we can assume TX must be.
 }
 
 /*******************************************************************************
@@ -246,16 +248,45 @@ bool spi_init(spi_t *this) {
 	return true;
 }
 
-void spi_dma_transfer(spi_t *this, uint16 len, const uint8_t *txBuffer, uint8_t *rxBuffer) {
+void spi_dma_transfer(spi_t *this, uint16 len, const uint8_t *tx, uint8_t *rx) {
+	static uint8_t dummy = SPI_FILL_CHAR;
 	
-	configASSERT(512 == len);
-	configASSERT(txBuffer && rxBuffer);
+	configASSERT(512 == len);    
+	configASSERT(tx || rx);
 	configASSERT(CY_DMA_CHANNEL_DISABLED == Cy_DMA_Descriptor_GetChannelState(this->txDma_Descriptor_1));
+	configASSERT(CY_DMA_CHANNEL_DISABLED == Cy_DMA_Descriptor_GetChannelState(this->rxDma_Descriptor_1));
+    
+    /* Transfer 512 bytes using 256 X loops and 2 Y loops. 
+    If tx or rx is NULL, point it to a single byte and don't increment. */  
+    
+	int32_t txSrcXincrement, txSrcYincrement;			    
+	if (!tx) {
+		tx = &dummy;
+		txSrcXincrement = 0;
+		txSrcYincrement = 0;        
+	} else {
+		txSrcXincrement = 1;
+		txSrcYincrement = 256;
+	}
+	Cy_DMA_Descriptor_SetXloopSrcIncrement(this->txDma_Descriptor_1, txSrcXincrement);  
+	Cy_DMA_Descriptor_SetYloopSrcIncrement(this->txDma_Descriptor_1, txSrcYincrement);
+	
+	int32_t rxDstXincrement, rxDstYincrement;
+	if (!rx) {
+		rx = &dummy;
+		rxDstXincrement = 0;
+		rxDstYincrement = 0;        
+	} else {
+		rxDstXincrement = 1;
+		rxDstYincrement = 256;
+	}    
+	Cy_DMA_Descriptor_SetXloopDstIncrement(this->rxDma_Descriptor_1, rxDstXincrement);    
+	Cy_DMA_Descriptor_SetYloopDstIncrement(this->rxDma_Descriptor_1, rxDstYincrement);         
 		
 	/*Set up SRC addr for TX DMA*/
-	Cy_DMA_Descriptor_SetSrcAddress(this->txDma_Descriptor_1, txBuffer);
+	Cy_DMA_Descriptor_SetSrcAddress(this->txDma_Descriptor_1, tx);
 	/*Set up DEST addr for RX DMA*/
-	Cy_DMA_Descriptor_SetDstAddress(this->rxDma_Descriptor_1, rxBuffer);
+	Cy_DMA_Descriptor_SetDstAddress(this->rxDma_Descriptor_1, rx);
 
 	/*Enable DMA_channels*/
 	Cy_DMA_Channel_Enable(this->rxDma_base, this->rxDma_channel);

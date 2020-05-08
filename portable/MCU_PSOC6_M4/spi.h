@@ -18,10 +18,12 @@
 #include <semphr.h>
 
 #include "project.h"
-
+    
+#define SPI_FILL_CHAR         (0xFF)      
+    
 // "Class" representing SPIs
 typedef struct {
-    // SPI HW
+	// SPI HW
 	CySCB_Type *const base;
 	cy_stc_scb_spi_context_t *const context;
 	cy_stc_scb_spi_config_t const *config;
@@ -31,7 +33,7 @@ typedef struct {
 	const uint32_t spi_miso_num;   // SPI MISO pin number for GPIO    
 	const cy_stc_sysint_t *const intcfg; // SPI ISR
 	const cy_israddress userIsr; // SPI ISR
-    // RX DMA:
+	// RX DMA:
 	DW_Type *const rxDma_base;
 	const uint32_t rxDma_channel; 
 	cy_stc_dma_descriptor_t *const rxDma_Descriptor_1;
@@ -39,7 +41,7 @@ typedef struct {
 	const cy_stc_dma_channel_config_t rxDma_channelConfig;
 	const cy_israddress intRxDma_ISR;
 	const cy_stc_sysint_t *intRxDma_cfg;
-    // TX DMA:
+	// TX DMA:
 	DW_Type *const txDma_base;
 	const uint32_t txDma_channel; 
 	cy_stc_dma_descriptor_t *const txDma_Descriptor_1;
@@ -47,7 +49,7 @@ typedef struct {
 	const cy_stc_dma_channel_config_t txDma_channelConfig;
 	const cy_israddress intTxDma_ISR;    
 	const cy_stc_sysint_t *intTxDma_cfg;    
-    // State variables:
+	// State variables:
 	bool initialized;   // Assigned dynamically        
 	TaskHandle_t owner; // Assigned dynamically      
 	SemaphoreHandle_t mutex; // Assigned dynamically      
@@ -62,7 +64,7 @@ void spi_ISR(spi_t *this);
 void spi_RxDmaComplete(spi_t *this);
 void spi_TxDmaComplete(spi_t *this);
 
-void spi_dma_transfer(spi_t *this, uint16 len, const uint8_t *txBuffer, uint8_t *rxBuffer);
+void spi_dma_transfer(spi_t *this, uint16 len, const uint8_t *tx, uint8_t *rx);
 
 #endif
 /* [] END OF FILE */

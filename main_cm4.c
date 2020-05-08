@@ -23,16 +23,6 @@
 
 extern void register_fs_tests();
 
-void my_assert_func (const char *file, int line, const char *func, const char *pred) {
-    fflush(stdout);
-    printf("assertion \"%s\" failed: file \"%s\", line %d, function: %s\n", pred, file, line, func);
-    fflush(stdout);        
-#if !defined(NDEBUG)
-    Cy_SysLib_AssertFailed(file, line); 
-#else
-    Cy_SysLib_Halt(0UL);
-#endif    
-}
 
 int main(void) {
 
@@ -104,4 +94,15 @@ void my_printf(const char *pcFormat, ...) {
     fflush(stdout);    
 }
 
+
+void my_assert_func (const char *file, int line, const char *func, const char *pred) {
+    fflush(stdout);
+    printf("assertion \"%s\" failed: file \"%s\", line %d, function: %s\n", pred, file, line, func);
+    fflush(stdout);        
+#if !defined(NDEBUG)
+    Cy_SysLib_AssertFailed(file, line); 
+#else
+    Cy_SysLib_Halt(0UL);
+#endif    
+}
 /* [] END OF FILE */
