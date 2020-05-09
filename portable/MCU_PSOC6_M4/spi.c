@@ -18,9 +18,12 @@
 #include "FreeRTOSFATConfig.h" // for DBG_PRINTF
 
 void spi_ISR(spi_t *this) {
+	/* Mask the spi done interrupt bit */
+	this->base->INTR_M_MASK &= ~SCB_INTR_M_SPI_DONE_Msk;
 
 	/* Check the status of master */
 	uint32_t masterStatus = Cy_SCB_SPI_GetSlaveMasterStatus(this->base);
+	Cy_SCB_SPI_ClearSlaveMasterStatus(this->base, masterStatus);    
 	configASSERT(masterStatus == CY_SCB_SPI_MASTER_DONE);
 	
 	/* The xHigherPriorityTaskWoken parameter must be initialized to pdFALSE as
@@ -34,7 +37,6 @@ void spi_ISR(spi_t *this) {
 	vTaskNotifyGiveFromISR(this->owner, // The handle of the task to which the notification is being sent.
 			&xHigherPriorityTaskWoken);
 
-	Cy_SCB_SPI_ClearSlaveMasterStatus(this->base, masterStatus);    
 	
 	/* Pass the xHigherPriorityTaskWoken value into portYIELD_FROM_ISR(). If
 	 xHigherPriorityTaskWoken was set to pdTRUE inside vTaskNotifyGiveFromISR()
@@ -66,6 +68,9 @@ void spi_RxDmaComplete(spi_t *this) {
 		configASSERT(false);
 	}
 
+	/* Clear rx DMA interrupt. */
+	Cy_DMA_Channel_ClearInterrupt(this->rxDma_base, this->rxDma_channel);                            
+
 	/* The xHigherPriorityTaskWoken parameter must be initialized to pdFALSE as
 	 it will get set to pdTRUE inside the interrupt safe API function if a
 	 context switch is required. */
@@ -77,9 +82,6 @@ void spi_RxDmaComplete(spi_t *this) {
 	vTaskNotifyGiveFromISR(this->owner, // The handle of the task to which the notification is being sent.
 			&xHigherPriorityTaskWoken);
 
-	/* Clear rx DMA interrupt. */
-	Cy_DMA_Channel_ClearInterrupt(this->rxDma_base, this->rxDma_channel);                
-	
 	/* Pass the xHigherPriorityTaskWoken value into portYIELD_FROM_ISR(). If
 	 xHigherPriorityTaskWoken was set to pdTRUE inside vTaskNotifyGiveFromISR()
 	 then calling portYIELD_FROM_ISR() will request a context switch. If
@@ -150,6 +152,7 @@ static void spi_rxDma_configure(spi_t *this) {
 	/* Initialize and enable interrupt from RxDma */
 	Cy_SysInt_Init(this->intRxDma_cfg, this->intRxDma_ISR);
 	NVIC_EnableIRQ(this->intRxDma_cfg->intrSrc);
+	__NVIC_ClearPendingIRQ(this->intRxDma_cfg->intrSrc);
 
 	/* Enable DMA interrupt source. */
 	Cy_DMA_Channel_SetInterruptMask(this->rxDma_base, this->rxDma_channel, CY_DMA_INTR_MASK);
@@ -191,6 +194,7 @@ static void spi_txDma_configure(spi_t *this) {
 	/* Initialize and enable the interrupt from TxDma */
 	Cy_SysInt_Init(this->intTxDma_cfg, this->intTxDma_ISR);
 	NVIC_EnableIRQ(this->intTxDma_cfg->intrSrc);
+	__NVIC_ClearPendingIRQ(this->intTxDma_cfg->intrSrc);    
 
 	/* Enable DMA interrupt source. */
 	Cy_DMA_Channel_SetInterruptMask(this->txDma_base, this->txDma_channel, CY_DMA_INTR_MASK);
@@ -218,9 +222,6 @@ bool spi_init(spi_t *this) {
 		DBG_PRINTF("FAILED_OPERATION: Cy_SCB_SPI_Init\n");
 		return false;
 	}
-
-	 /* Unmasking only the spi done interrupt bit */
-	this->base->INTR_M_MASK = SCB_INTR_M_SPI_DONE_Msk;
 	
 	/* Hook interrupt service routine */
 	sysSpistatus = Cy_SysInt_Init(this->intcfg, this->userIsr);

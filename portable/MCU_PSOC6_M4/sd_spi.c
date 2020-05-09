@@ -38,9 +38,11 @@ void sd_spi_acquire(sd_card_t *this) {
 	//  Ensure that the SPI is not busy before calling this function.
 	configASSERT(!Cy_SCB_SPI_IsBusBusy(this->spi->base));
 	Cy_SCB_SPI_SetActiveSlaveSelect(this->spi->base, this->ss);
+//	Cy_SCB_SPI_Enable(this->spi->base);
 }
 void sd_spi_release(sd_card_t *this) {
 	configASSERT(!Cy_SCB_SPI_IsBusBusy(this->spi->base));    
+//	Cy_SCB_SPI_Disable(this->spi->base, this->spi->context);    
 	this->spi->owner = 0;    
 	xSemaphoreGiveRecursive(this->spi->mutex);
 }
@@ -64,8 +66,6 @@ void sd_spi_go_high_frequency(sd_card_t *this) {
 	// For 12.5 MHz:  0    
 	const static uint32_t div = 1; // Gives 6250 kHz
 
-	sd_spi_acquire(this);
-
 	if (div == Cy_SysClk_PeriphGetDivider(this->spi->dividerType,
 					this->spi->dividerNum)) {
 		// Nothing to do
@@ -84,8 +84,6 @@ void sd_spi_go_high_frequency(sd_card_t *this) {
 			this->spi->dividerNum);
 	configASSERT(CY_SYSCLK_SUCCESS == rc);
 	Cy_SCB_SPI_Enable(this->spi->base);
-
-	sd_spi_release(this);
 }
 void sd_spi_go_low_frequency(sd_card_t *this) {
 	// In TopDesign.cysch, initial clock setting (for 100 kHz) is
@@ -96,11 +94,8 @@ void sd_spi_go_low_frequency(sd_card_t *this) {
 	// 400 kHz: 30u
 	const static uint32_t div = 124u;
 
-	sd_spi_acquire(this);
-
 	if (div == Cy_SysClk_PeriphGetDivider(this->spi->dividerType,
 					this->spi->dividerNum)) {
-		sd_spi_release(this);
 		return;
 	}
 	Cy_SCB_SPI_Disable(this->spi->base, this->spi->context);
@@ -116,7 +111,6 @@ void sd_spi_go_low_frequency(sd_card_t *this) {
 	configASSERT(CY_SYSCLK_SUCCESS == rc);
 	Cy_SCB_SPI_Enable(this->spi->base);
 
-	sd_spi_release(this);
 }
 
 // SPI Transfer: Read & Write (simultaneously) on SPI bus
@@ -133,19 +127,22 @@ bool sd_spi_transfer(sd_card_t *this, const uint8_t *tx, uint8_t *rx, size_t len
 
 	configASSERT(!Cy_SCB_SPI_IsBusBusy(this->spi->base));        
 	configASSERT(!Cy_SCB_SPI_GetNumInTxFifo(this->spi->base));
-	Cy_SCB_SPI_ClearTxFifoStatus(this->spi->base, CY_SCB_SPI_TX_TRIGGER);
+//	Cy_SCB_SPI_ClearTxFifoStatus(this->spi->base, CY_SCB_SPI_TX_TRIGGER);
 
 	configASSERT(!Cy_SCB_SPI_GetNumInRxFifo(this->spi->base));       
-	Cy_SCB_SPI_ClearRxFifoStatus(this->spi->base, CY_SCB_SPI_RX_TRIGGER);
+//	Cy_SCB_SPI_ClearRxFifoStatus(this->spi->base, CY_SCB_SPI_RX_TRIGGER);
 	
-	Cy_SCB_SPI_ClearRxFifo(this->spi->base);
-	Cy_SCB_SPI_ClearTxFifo(this->spi->base);    
+//	Cy_SCB_SPI_ClearRxFifo(this->spi->base);
+//	Cy_SCB_SPI_ClearTxFifo(this->spi->base);    
 	
 	/* Ensure this task does not already have a notification pending by calling
 	 ulTaskNotifyTake() with the xClearCountOnExit parameter set to pdTRUE, and a block time of 0
 	 (don't block). */
 	rc = ulTaskNotifyTake(pdTRUE, 0);
 	configASSERT(!rc);
+
+	 /* Unmasking only the spi done interrupt bit */
+	this->spi->base->INTR_M_MASK = SCB_INTR_M_SPI_DONE_Msk;        
 
 	spi_dma_transfer(this->spi, length, tx, rx);    
 
@@ -177,9 +174,9 @@ bool sd_spi_transfer(sd_card_t *this, const uint8_t *tx, uint8_t *rx, size_t len
 	}        
 	// There should be no more notifications pending:
 	configASSERT(!ulTaskNotifyTake(pdTRUE, 0));
+	configASSERT(!Cy_SCB_SPI_IsBusBusy(this->spi->base));            
 	configASSERT(CY_DMA_CHANNEL_DISABLED == Cy_DMA_Descriptor_GetChannelState(this->spi->txDma_Descriptor_1));
 	configASSERT(Cy_SCB_SPI_IsTxComplete(this->spi->base));
-	configASSERT(!Cy_SCB_SPI_IsBusBusy(this->spi->base));        
 	configASSERT(0 == Cy_SCB_SPI_GetNumInRxFifo(this->spi->base));    
 	configASSERT(0 == Cy_SCB_SPI_GetNumInTxFifo(this->spi->base));    
 	
@@ -196,14 +193,17 @@ uint8_t sd_spi_write(sd_card_t *this, const uint8_t value) {
 	configASSERT(!Cy_SCB_SPI_GetNumInTxFifo(this->spi->base));    
 	configASSERT(!Cy_SCB_SPI_GetNumInRxFifo(this->spi->base));        
 
-	Cy_SCB_SPI_ClearRxFifo(this->spi->base);
-	Cy_SCB_SPI_ClearTxFifo(this->spi->base);
+//	Cy_SCB_SPI_ClearRxFifo(this->spi->base);
+//	Cy_SCB_SPI_ClearTxFifo(this->spi->base);
 	
 	/* Ensure this task does not already have a notification pending by calling
 	 ulTaskNotifyTake() with the xClearCountOnExit parameter set to pdTRUE, and a block time of 0
 	 (don't block). */
 	BaseType_t rc = ulTaskNotifyTake(pdTRUE, 0);
 	configASSERT(!rc);    
+	
+	 /* Unmasking only the spi done interrupt bit */
+	this->spi->base->INTR_M_MASK = SCB_INTR_M_SPI_DONE_Msk;    
 	
 	uint32_t n = Cy_SCB_SPI_Write(this->spi->base, value);
 	configASSERT(1 == n);
@@ -226,9 +226,8 @@ uint8_t sd_spi_write(sd_card_t *this, const uint8_t value) {
 	}
 	// There should be no more notifications pending:
 	configASSERT(!ulTaskNotifyTake(pdTRUE, 0));
-	
-	configASSERT(Cy_SCB_SPI_IsTxComplete(this->spi->base));
 	configASSERT(!Cy_SCB_SPI_IsBusBusy(this->spi->base));    
+	configASSERT(Cy_SCB_SPI_IsTxComplete(this->spi->base));
 	configASSERT(1 == Cy_SCB_SPI_GetNumInRxFifo(this->spi->base));
 	
 	n = Cy_SCB_SPI_Read(this->spi->base);

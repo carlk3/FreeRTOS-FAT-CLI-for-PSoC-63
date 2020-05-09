@@ -28,9 +28,9 @@ which SPI it is driven by, and how it is wired.
 
 #include <string.h>
 
-/* FreeRTOS includes. */
-#include "FreeRTOS.h"
-#include "FreeRTOSFATConfig.h"
+///* FreeRTOS includes. */
+//#include "FreeRTOS.h"
+//#include "FreeRTOSFATConfig.h"
 
 // Make it easier to spot errors:
 #include "project.h" 
@@ -112,8 +112,8 @@ static sd_card_t sd_cards[] = { 	// One for each SD card
 	}	
 };
 
-// Callback function called in the Cy_SCB_SPI_Interrupt to notify the user about occurrences of SPI Callback Events.
-// Each SPI has its own interrupt and callback.
+// Interrupt to notify the user about occurrences of SPI Events.
+// Each SPI has its own interrupt.
 // Notifies task when a transfer is complete.
 void SPI_1_ISR() {
 	spi_ISR(&spi[0]);

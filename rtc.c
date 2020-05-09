@@ -364,7 +364,7 @@ time_t FreeRTOS_time( time_t *pxTime ) {
     
     time_t epochtime = (xTaskGetTickCount() / configTICK_RATE_HZ) + offset;     
     
-    if (0 == epochtime % 60) // Synch to RTC once a minute // FIXME
+    if (0 == epochtime % 60*60) // Synch to RTC once an hour
         synch_time();
         
     if (pxTime)
