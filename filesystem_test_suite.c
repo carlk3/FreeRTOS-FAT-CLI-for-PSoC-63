@@ -122,7 +122,7 @@ static void prvSimpleTest() {
 		fflush(stdout);
 
 		FF_PRINTF("Seeking file... ");
-		err = ff_fseek(f, 0, SEEK_SET);
+		err = ff_fseek(f, 0, FF_SEEK_SET);
 		FF_PRINTF("%s\n", (err < 0 ? "Fail :(" : "OK"));
 		fflush(stdout);
 		if (err < 0) {
@@ -153,7 +153,7 @@ static void prvSimpleTest() {
 		number += 1;
 
 		// Seek to beginning of number
-		ff_fseek(f, pos, SEEK_SET);
+		ff_fseek(f, pos, FF_SEEK_SET);
 
 		// Store number
 		ff_fprintf(f, "    %d\n", (int) number);

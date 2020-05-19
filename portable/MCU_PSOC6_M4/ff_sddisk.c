@@ -95,16 +95,6 @@ static bool disk_init(sd_card_t *pSD) {
 		&& (pSD->ff_disks[0])
 		&& (pSD->ff_disks[0]->xStatus.bIsInitialised == pdTRUE))
 	{
-		if (pSD->ff_disks[0]->xStatus.bIsMounted) {
-            // Get rid of any stale information in FS.
-    		FF_PRINTF("Invalidating %s\n", pSD->pcName);     
-			FF_Invalidate(pSD->ff_disks[0]->pxIOManager);   
-            // Unmount if previously mounted.            
-			FF_PRINTF("Unmounting %s\n", pSD->pcName);                                     
-			FF_Unmount(pSD->ff_disks[0]);
-			pSD->ff_disks[0]->xStatus.bIsMounted = pdFALSE;    
-			FF_FlushCache(pSD->ff_disks[0]->pxIOManager);            
-		}
         return true;
 	}
     // Allocate array of FF_Disk_t pointers:
@@ -180,6 +170,8 @@ BaseType_t FF_SDDiskReinit( FF_Disk_t *pxDisk ) {
 /* Unmount the volume */
 // FF_SDDiskUnmount() calls FF_Unmount().
 BaseType_t FF_SDDiskUnmount( FF_Disk_t *pDisk ) {
+    if (!pDisk->xStatus.bIsMounted)
+        return FF_ERR_NONE;
 	FF_Error_t e = FF_Unmount(pDisk);
 	if (FF_ERR_NONE != e) {
 		FF_PRINTF("FF_Unmount error: %s\n", FF_GetErrMessage(e));
@@ -193,6 +185,8 @@ BaseType_t FF_SDDiskUnmount( FF_Disk_t *pDisk ) {
 /* Mount the volume */
 // FF_SDDiskMount() calls FF_Mount().
 BaseType_t FF_SDDiskMount( FF_Disk_t *pDisk ) {
+    if (pDisk->xStatus.bIsMounted)
+        return FF_ERR_NONE;
 	// FF_Error_t FF_Mount( FF_Disk_t *pxDisk, BaseType_t xPartitionNumber );
 	FF_Error_t e = FF_Mount(pDisk, PARTITION_NUMBER);
 	if (FF_ERR_NONE != e) {

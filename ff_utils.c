@@ -159,4 +159,55 @@ void getFree(FF_Disk_t *pxDisk, uint64_t *pFreeMB, unsigned *pFreePct) {
     *pFreeMB = ulFreeSizeKB/1024;
     *pFreePct = iPercentageFree;
 }
+
+// Make Filesize equal to the FilePointer
+FF_Error_t FF_UpdateDirEnt( FF_FILE *pxFile )
+{
+FF_DirEnt_t xOriginalEntry;
+FF_Error_t xError;
+
+	/* Get the directory entry and update it to show the new file size */
+	xError = FF_GetEntry( pxFile->pxIOManager, pxFile->usDirEntry, pxFile->ulDirCluster, &xOriginalEntry );
+
+	/* Now update the directory entry */
+	if( ( FF_isERR( xError ) == pdFALSE ) &&
+		( ( pxFile->ulFileSize != xOriginalEntry.ulFileSize ) || ( pxFile->ulFileSize == 0UL ) ) )
+	{
+		if( pxFile->ulFileSize == 0UL )
+		{
+			xOriginalEntry.ulObjectCluster = 0;
+		}
+
+		xOriginalEntry.ulFileSize = pxFile->ulFileSize;
+		xError = FF_PutEntry( pxFile->pxIOManager, pxFile->usDirEntry, pxFile->ulDirCluster, &xOriginalEntry, NULL );
+	}
+	return xError;    
+}
+
+int prvFFErrorToErrno( FF_Error_t xError ); // In ff_stdio.c
+
+FF_Error_t ff_set_fsize( FF_FILE *pxStream )
+{
+FF_Error_t iResult;    
+int iReturn, ff_errno;
+
+	iResult = FF_UpdateDirEnt( pxStream );
+
+	ff_errno = prvFFErrorToErrno( iResult );
+
+	if( ff_errno == 0 )
+	{
+		iReturn = 0;
+	}
+	else
+	{
+		iReturn = -1;
+	}
+
+	/* Store the errno to thread local storage. */
+	stdioSET_ERRNO( ff_errno );
+
+	return iReturn;
+}
+
 /* [] END OF FILE */

@@ -27,13 +27,13 @@
 #include "FreeRTOS_CLI.h"
 #include "uart_cli.h"
 #include "rtc.h"
+#include "hw_config.h"
 
 /*
  * Register commands that can be used with FreeRTOS+CLI.
  * The commands are defined in CLI-commands.c and File-related-CLI-commands.c
  * respectively.
  */
-extern void vRegisterCLICommands(void);
 extern void vRegisterFileSystemCLICommands(void);
 
 bool die_now = false; // Used outside here
@@ -164,18 +164,40 @@ static void uartTask(void *arg) {
 	}
 }
 
-//static void handle_error(void) {
-//	/* Disable all interrupts */
-//	__disable_irq();
-//
-//	/* Switch on error LED */
-////	Cy_GPIO_Write(Pin_LED_Red_0_PORT, LED9_0_NUM, 0);
-//	CY_ASSERT(!"error");
-//	Cy_SysLib_Halt(1);
-//}
-//
-
 /*-----------------------------------------------------------*/
+static BaseType_t diskInfo(char *pcWriteBuffer,
+		size_t xWriteBufferLen, const char *pcCommandString) {
+	(void) pcWriteBuffer;
+	(void) xWriteBufferLen;
+	const char *pcParameter;
+	BaseType_t xParameterStringLength;
+
+	/* Obtain the parameter string. */
+	pcParameter = FreeRTOS_CLIGetParameter(pcCommandString, /* The command string itself. */
+		1, /* Return the first parameter. */
+		&xParameterStringLength /* Store the parameter string length. */
+	);
+
+	/* Sanity check something was returned. */
+	configASSERT(pcParameter);
+
+    sd_card_t *sd = sd_get_by_name(pcParameter);
+    size_t i;
+    for (i = 0; i < sd->ff_disk_count; ++i) {
+    	FF_Disk_t *pxDisk = sd->ff_disks[i];
+		if (pxDisk) {
+            FF_SDDiskShowPartition(pxDisk);
+        }
+    }
+    return pdFALSE;
+}
+static const CLI_Command_Definition_t xDiskInfo = { 
+		"diskinfo", /* The command string to type. */
+		"\ndiskinfo <device name>:\n Print information about mounted partitions\n"
+		"\te.g.: \"diskinfo SDCard\"\n", 
+		diskInfo, /* The function to run. */
+		1 /* One parameter is expected. */
+};/*-----------------------------------------------------------*/
 static BaseType_t die_fn(char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString) {
 	(void) pcCommandString;
 	(void) pcWriteBuffer;
@@ -294,6 +316,7 @@ static const CLI_Command_Definition_t xDate = {
 
 static void vRegisterMyCLICommands(void) {
 	/* Register all the command line commands defined immediately above. */
+	FreeRTOS_CLIRegisterCommand(&xDiskInfo);
 	FreeRTOS_CLIRegisterCommand(&xSetRTC);
 	FreeRTOS_CLIRegisterCommand(&xDate);        
 	FreeRTOS_CLIRegisterCommand(&xDie);

@@ -135,6 +135,11 @@ static BaseType_t prvTYPECommand( char *pcWriteBuffer, size_t xWriteBufferLen, c
 static BaseType_t prvCOPYCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString );
 
 /*
+ * Implements the REN command.
+ */
+static BaseType_t prvRENCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString );
+
+/*
  * Implements the PWD (print working directory) command.
  */
 static BaseType_t prvPWDCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString );
@@ -196,6 +201,15 @@ static const CLI_Command_Definition_t xCOPY =
 	2 /* Two parameters are expected. */
 };
 
+/* Structure that defines the COPY command line command, which deletes a file. */
+static const CLI_Command_Definition_t xREN =
+{
+	"ren", /* The command string to type. */
+	"\r\nren <source file> <dest file>:\r\n Moves <source file> to <dest file>\r\n",
+	prvRENCommand, /* The function to run. */
+	2 /* Two parameters are expected. */
+};
+
 /* Structure that defines the pwd command line command, which prints the current working directory. */
 static const CLI_Command_Definition_t xPWD =
 {
@@ -216,6 +230,7 @@ void vRegisterFileSystemCLICommands( void )
 	FreeRTOS_CLIRegisterCommand( &xDEL );
 	FreeRTOS_CLIRegisterCommand( &xRMDIR );
 	FreeRTOS_CLIRegisterCommand( &xCOPY );
+	FreeRTOS_CLIRegisterCommand( &xREN );
 	FreeRTOS_CLIRegisterCommand( &xPWD );
 }
 /*-----------------------------------------------------------*/
@@ -563,6 +578,55 @@ FF_Stat_t xStat;
 	}
 
 	strcat( pcWriteBuffer, cliNEW_LINE );
+
+	return pdFALSE;
+}
+/*-----------------------------------------------------------*/
+
+static BaseType_t prvRENCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
+{
+char *pcSourceFile;
+const char *pcDestinationFile;
+BaseType_t xParameterStringLength;
+
+	/* Obtain the name of the destination file. */
+	pcDestinationFile = FreeRTOS_CLIGetParameter
+						(
+							pcCommandString,		/* The command string itself. */
+							2,						/* Return the second parameter. */
+							&xParameterStringLength	/* Store the parameter string length. */
+						);
+
+	/* Sanity check something was returned. */
+	configASSERT( pcDestinationFile );
+
+	/* Obtain the name of the source file. */
+	pcSourceFile = ( char * ) FreeRTOS_CLIGetParameter
+								(
+									pcCommandString,		/* The command string itself. */
+									1,						/* Return the first parameter. */
+									&xParameterStringLength	/* Store the parameter string length. */
+								);
+
+	/* Sanity check something was returned. */
+	configASSERT( pcSourceFile );
+
+	/* Terminate the string. */
+	pcSourceFile[ xParameterStringLength ] = 0x00;
+
+    // int ff_rename( const char *pcOldName, const char *pcNewName );
+    // If the file is moved successfully then zero is returned.
+    // If the file could not be moved then -1 is returned and the task’s errno is set to indicate the reason. 
+    // A task can obtain its errno value using the ff_errno() API function.    
+    int ec = ff_rename(pcSourceFile, pcDestinationFile, false);
+    if (ec) {
+			int error = stdioGET_ERRNO();
+			snprintf( pcWriteBuffer, xWriteBufferLen, "%s: ff_rename error: %s, (%d)\n",  __FUNCTION__, strerror(error),
+					error);
+    } else {
+		snprintf( pcWriteBuffer, xWriteBufferLen, "Rename succeeded" );
+	}
+	strncat( pcWriteBuffer, cliNEW_LINE, xWriteBufferLen );
 
 	return pdFALSE;
 }

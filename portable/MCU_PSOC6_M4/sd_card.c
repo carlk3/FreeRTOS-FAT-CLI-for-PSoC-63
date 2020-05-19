@@ -803,10 +803,9 @@ int sd_deinit(sd_card_t *this) {
 	return this->m_Status;
 }
 
-
 // SPI function to wait till chip is ready and sends start token
 static bool sd_wait_token(sd_card_t *this, uint8_t token) { 
-    const uint32_t timeout = 300; // Wait for 300 msec for start token
+    const uint32_t timeout = 1000; // Wait for start token
 	TickType_t xStart = xTaskGetTickCount();
 	do {
 		if (token == sd_spi_write(this, SPI_FILL_CHAR)) {

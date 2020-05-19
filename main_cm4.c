@@ -18,10 +18,31 @@
 // FreeRTOS:
 #include "FreeRTOS.h"
 #include <task.h>
+#include "FreeRTOS_CLI.h"
 
 #include "uart_cli.h"
 
 extern void register_fs_tests();
+
+/*-----------------------------------------------------------*/
+extern void my_test();
+//extern void show_default();
+static BaseType_t test(char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString) {
+	(void) pcCommandString;
+	(void) pcWriteBuffer;
+	(void) xWriteBufferLen;
+
+    my_test();
+
+	return pdFALSE;
+}
+static const CLI_Command_Definition_t xTest = { 
+    "test", /* The command string to type. */
+    "\ntest:\n Quick test\n", 
+    test, /* The function to run. */
+    0 /* No parameters are expected. */
+};
+/*-----------------------------------------------------------*/
 
 
 int main(void) {
@@ -38,7 +59,8 @@ int main(void) {
     Cy_SysPm_BackupSuperCapCharge(CY_SYSPM_SC_CHARGE_ENABLE);    
   
     CLI_Start();     
-    register_fs_tests();        
+    register_fs_tests();   
+	FreeRTOS_CLIRegisterCommand(&xTest);            
     
     vTaskStartScheduler();  // Will never return
 	configASSERT(!"It will never get here");

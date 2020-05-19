@@ -250,7 +250,8 @@ bool spi_init(spi_t *this) {
 }
 
 void spi_dma_transfer(spi_t *this, uint16 len, const uint8_t *tx, uint8_t *rx) {
-	static uint8_t dummy = SPI_FILL_CHAR;
+    // Cannot be a stack variable, since the function can return before the DMA channel runs:
+	static uint8_t dummy = SPI_FILL_CHAR; 
 	
 	configASSERT(512 == len);    
 	configASSERT(tx || rx);
