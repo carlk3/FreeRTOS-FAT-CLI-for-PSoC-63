@@ -162,6 +162,12 @@
 // Hardware Configuration of the SPI and SD Card "objects"
 #include "hw_config.h"
 
+//DEBUG:
+#define LED_ON 0
+#define LED_OFF 1
+#define SIGNAL_MOUNTED(x) Cy_GPIO_Write(BlueLED_PORT, BlueLED_NUM, x); 
+#define SIGNAL_PRESENT(x) Cy_GPIO_Write(RedLED_PORT, RedLED_NUM, x) ;
+
 /* Control Tokens   */
 #define SPI_DATA_RESPONSE_MASK   (0x1F)
 #define SPI_DATA_ACCEPTED        (0x05)
@@ -454,14 +460,14 @@ bool sd_card_detect(sd_card_t *this) {
 			== this->card_detected_true) {
 		//The socket is now occupied
 		this->m_Status &= ~STA_NODISK;
-		Cy_GPIO_Write(RedLED_PORT, RedLED_NUM, 0) ;                
+		SIGNAL_PRESENT(LED_ON);                
 		return true;
 	} else {
 		//The socket is now empty
 		this->m_Status |= (STA_NODISK | STA_NOINIT);
 		this->card_type = SDCARD_NONE;
 		DBG_PRINTF("No SD card detected!\n");
-		Cy_GPIO_Write(RedLED_PORT, RedLED_NUM, 1) ;
+		SIGNAL_PRESENT(LED_OFF);
 		return false;
 	}
 }
@@ -472,7 +478,7 @@ bool sd_card_detect(sd_card_t *this) {
 static uint32_t sd_go_idle_state(sd_card_t *this) {
 	uint32_t response;
 
-	/* Reseting the MCU SPI master may not reset the on-board SDCard, in which
+	/* Resetting the MCU SPI master may not reset the on-board SDCard, in which
 	 * case when MCU power-on occurs the SDCard will resume operations as
 	 * though there was no reset. In this scenario the first CMD0 will
 	 * not be interpreted as a command and get lost. For some cards retrying
@@ -691,28 +697,28 @@ static void CardDetectTask(void *arg) {
 //		DBG_PRINTF("Task was notified.\n");        
 		sd_card_t *pSD = sd_get_by_num(card_num);
 		configASSERT(pSD);
-        size_t i;
-        for (i = 0; i < pSD->ff_disk_count; ++i) {
-        	FF_Disk_t *pxDisk = pSD->ff_disks[i];
-    		if (pxDisk) {
-    			if (pxDisk->xStatus.bIsInitialised) {
-    				sd_lock(pSD);                        
-    				if (!sd_card_detect(pSD)) {
-    					if (pxDisk->xStatus.bIsMounted) {
-    						FF_PRINTF("Invalidating %s\n", pSD->pcName);     
-    						FF_Invalidate(pxDisk->pxIOManager);                                
-    						FF_PRINTF("Unmounting %s\n", pSD->pcName);                                     
-    						FF_Unmount(pxDisk);
-    						pxDisk->xStatus.bIsMounted = pdFALSE;    
-    						Cy_GPIO_Write(BlueLED_PORT, BlueLED_NUM, 1) ;   
-    					}
-                        FF_SDDiskDelete(pxDisk);
-    					sd_deinit(pSD);                                                    
-    				}  
-    			}
-    			sd_unlock(pSD);                
-    		}
-        }
+		size_t i;
+		for (i = 0; i < pSD->ff_disk_count; ++i) {
+			FF_Disk_t *pxDisk = pSD->ff_disks[i];
+			if (pxDisk) {
+				if (pxDisk->xStatus.bIsInitialised) {
+					sd_lock(pSD);                        
+					if (!sd_card_detect(pSD)) {
+						if (pxDisk->xStatus.bIsMounted) {
+							FF_PRINTF("Invalidating %s\n", pSD->pcName);     
+							FF_Invalidate(pxDisk->pxIOManager);                                
+							FF_PRINTF("Unmounting %s\n", pSD->pcName);                                     
+							FF_Unmount(pxDisk);
+							pxDisk->xStatus.bIsMounted = pdFALSE;    
+							SIGNAL_MOUNTED(LED_OFF);   
+						}
+						FF_SDDiskDelete(pxDisk);
+						sd_deinit(pSD);                                                    
+					}  
+				}
+				sd_unlock(pSD);                
+			}
+		}
 	}
 }
 
@@ -797,15 +803,15 @@ int sd_deinit(sd_card_t *this) {
 	return this->m_Status;
 }
 
-
 // SPI function to wait till chip is ready and sends start token
-static bool sd_wait_token(sd_card_t *this, uint8_t token) {    
+static bool sd_wait_token(sd_card_t *this, uint8_t token) { 
+    const uint32_t timeout = 1000; // Wait for start token
 	TickType_t xStart = xTaskGetTickCount();
 	do {
 		if (token == sd_spi_write(this, SPI_FILL_CHAR)) {
 			return true;
 		}
-	} while ((xTaskGetTickCount() - xStart) < pdMS_TO_TICKS(300)); // Wait for 300 msec for start token
+	} while ((xTaskGetTickCount() - xStart) < pdMS_TO_TICKS(timeout)); 
 	DBG_PRINTF("sd_wait_token: timeout\n");
 	return false;
 }
@@ -942,8 +948,8 @@ static uint8_t sd_write_block(sd_card_t *this, const uint8_t *buffer, uint8_t to
 	sd_spi_write(this, token);
 
 	// write the data
-	bool rc = sd_spi_write_block(this, buffer, length);
-	configASSERT(rc);
+	bool ret = sd_spi_transfer(this, buffer, NULL, length);
+	configASSERT(ret);
 
 #if MBED_CONF_SD_CRC_ENABLED
 	if (_crc_on) {

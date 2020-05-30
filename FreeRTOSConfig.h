@@ -144,17 +144,24 @@ Reference.
 */
 
 /* Put KERNEL_INTERRUPT_PRIORITY in top __NVIC_PRIO_BITS bits of CM4 register */
-#define configKERNEL_INTERRUPT_PRIORITY         0xFF // 111b 
+#define configKERNEL_INTERRUPT_PRIORITY         0xFF // 111 11111b = 7d
 /* 
 Put MAX_SYSCALL_INTERRUPT_PRIORITY in top __NVIC_PRIO_BITS bits of CM4 register
 NOTE For IAR compiler make sure that changes of this macro is reflected in  
 file portable\IAR\CM4F\portasm.s in PendSV_Handler: routine
 */
-#define configMAX_SYSCALL_INTERRUPT_PRIORITY    0x3F  // 001b 
+#define configMAX_SYSCALL_INTERRUPT_PRIORITY    0x3F  // 001 11111b = 1d
 /* configMAX_API_CALL_INTERRUPT_PRIORITY is a new name for configMAX_SYSCALL_INTERRUPT_PRIORITY
  that is used by newer ports only. The two are equivalent. */
 #define configMAX_API_CALL_INTERRUPT_PRIORITY 	configMAX_SYSCALL_INTERRUPT_PRIORITY
 
+/* A full interrupt nesting model is achieved by setting configMAX_SYSCALL_INTERRUPT_PRIORITY 
+   above (that is, at a higher priority level) than configKERNEL_INTERRUPT_PRIORITY. */
+/* I believe that means that configMAX_API_CALL_INTERRUPT_PRIORITY should be numerically 
+   less than configKERNEL_INTERRUPT_PRIORITY */
+/* Interrupts between the RTOS kernel interrupt priority and 
+   configMAX_SYSCALL_INTERRUPT_PRIORITY can nest and make applicable API calls. 
+   I think that needs to be set in Design Wide Resources. */
 
 /* Set the following definitions to 1 to include the API function, or zero
 to exclude the API function. */

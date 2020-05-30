@@ -9,6 +9,7 @@
  *
  * ========================================
 */
+#include <stdint.h>
 #include <limits.h>
 #include "ff_headers.h"
 #include "ff_stdio.h"
@@ -25,8 +26,6 @@
 
 typedef uint32_t DWORD;
 typedef unsigned int UINT;
-
-extern int FFReserve(FF_FILE *pxDisk, uint32_t blockCnt);
 
 // Borrowed from http://elm-chan.org/fsw/ff/res/app4.c
 static DWORD pn (       /* Pseudo random number generator */

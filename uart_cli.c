@@ -27,26 +27,20 @@
 #include "FreeRTOS_CLI.h"
 #include "uart_cli.h"
 #include "rtc.h"
+#include "hw_config.h"
 
 /*
  * Register commands that can be used with FreeRTOS+CLI.
  * The commands are defined in CLI-commands.c and File-related-CLI-commands.c
  * respectively.
  */
-extern void vRegisterCLICommands(void);
 extern void vRegisterFileSystemCLICommands(void);
-
-extern void run_ew_demo(void);
-extern void Data_Logging_Start();
 
 bool die_now = false; // Used outside here
 
 static SemaphoreHandle_t xUartCountingSemaphore;
 
 static void UART_handle_event(uint32_t event) {
-
-	uint32_t rsta = Cy_SCB_UART_GetReceiveStatus(UART_1_HW, &UART_1_context);
-	configASSERT(!rsta);
 
 	if (CY_SCB_UART_RECEIVE_DONE_EVENT == event) {
 		/* The xHigherPriorityTaskWoken parameter must be initialized to pdFALSE as
@@ -170,19 +164,41 @@ static void uartTask(void *arg) {
 	}
 }
 
-//static void handle_error(void) {
-//	/* Disable all interrupts */
-//	__disable_irq();
-//
-//	/* Switch on error LED */
-////	Cy_GPIO_Write(Pin_LED_Red_0_PORT, LED9_0_NUM, 0);
-//	CY_ASSERT(!"error");
-//	Cy_SysLib_Halt(1);
-//}
-//
-
 /*-----------------------------------------------------------*/
-static BaseType_t die(char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString) {
+static BaseType_t diskInfo(char *pcWriteBuffer,
+		size_t xWriteBufferLen, const char *pcCommandString) {
+	(void) pcWriteBuffer;
+	(void) xWriteBufferLen;
+	const char *pcParameter;
+	BaseType_t xParameterStringLength;
+
+	/* Obtain the parameter string. */
+	pcParameter = FreeRTOS_CLIGetParameter(pcCommandString, /* The command string itself. */
+		1, /* Return the first parameter. */
+		&xParameterStringLength /* Store the parameter string length. */
+	);
+
+	/* Sanity check something was returned. */
+	configASSERT(pcParameter);
+
+    sd_card_t *sd = sd_get_by_name(pcParameter);
+    size_t i;
+    for (i = 0; i < sd->ff_disk_count; ++i) {
+    	FF_Disk_t *pxDisk = sd->ff_disks[i];
+		if (pxDisk) {
+            FF_SDDiskShowPartition(pxDisk);
+        }
+    }
+    return pdFALSE;
+}
+static const CLI_Command_Definition_t xDiskInfo = { 
+		"diskinfo", /* The command string to type. */
+		"\ndiskinfo <device name>:\n Print information about mounted partitions\n"
+		"\te.g.: \"diskinfo SDCard\"\n", 
+		diskInfo, /* The function to run. */
+		1 /* One parameter is expected. */
+};/*-----------------------------------------------------------*/
+static BaseType_t die_fn(char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString) {
 	(void) pcCommandString;
 	(void) pcWriteBuffer;
 	(void) xWriteBufferLen;
@@ -194,7 +210,7 @@ static BaseType_t die(char *pcWriteBuffer, size_t xWriteBufferLen, const char *p
 static const CLI_Command_Definition_t xDie = { 
     "die", /* The command string to type. */
     "\ndie:\n Kill background tasks\n", 
-    die, /* The function to run. */
+    die_fn, /* The function to run. */
     0 /* No parameters are expected. */
 };
 /*-----------------------------------------------------------*/
@@ -268,12 +284,25 @@ static const CLI_Command_Definition_t xSetRTC = {
     6 /* parameters are expected. */
 };
 /*-----------------------------------------------------------*/
+static void printDateTime() {
+    char buf[128] = {0};    
+
+//	PrintDateTime();
+    
+	time_t epoch_secs = FreeRTOS_time(NULL);
+	struct tm *ptm = localtime(&epoch_secs);    
+    size_t n = strftime(buf, sizeof(buf), "%c", ptm);    
+	configASSERT(n); 
+    printf("%s\n", buf);
+	strftime(buf, sizeof(buf), "%j", ptm);    //The day of the year as a decimal number (range 001 to 366).
+    printf("Day of year: %s\n", buf);    
+}
 static BaseType_t date(char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString) {
 	(void) pcCommandString;
 	(void) pcWriteBuffer;
 	(void) xWriteBufferLen;
 
-	PrintDateTime();
+    printDateTime();
 
 	return pdFALSE;
 }
@@ -287,6 +316,7 @@ static const CLI_Command_Definition_t xDate = {
 
 static void vRegisterMyCLICommands(void) {
 	/* Register all the command line commands defined immediately above. */
+	FreeRTOS_CLIRegisterCommand(&xDiskInfo);
 	FreeRTOS_CLIRegisterCommand(&xSetRTC);
 	FreeRTOS_CLIRegisterCommand(&xDate);        
 	FreeRTOS_CLIRegisterCommand(&xDie);
@@ -323,6 +353,7 @@ void CLI_Start() {
 	Cy_SCB_UART_Enable(UART_1_HW);
 
 	printf("\033[2J\033[H"); // Clear Screen
+    printDateTime();       
 	printf("\nFree RTOS+CLI> ");
 	fflush(stdout);
 

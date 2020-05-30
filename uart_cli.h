@@ -10,6 +10,8 @@
  * ========================================
 */
 
+#include <stdbool.h>
+
 /* Dimensions the buffer into which input characters are placed. */
 #define cmdMAX_INPUT_SIZE	60
 
@@ -24,5 +26,8 @@
 
 /* Const messages output by the command console. */
 static const char * const pcEndOfOutputMessage = "\n> ";       
+
+extern bool die;
+extern void CLI_Start();
 
 /* [] END OF FILE */

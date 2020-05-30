@@ -5,9 +5,16 @@
   </Group>
   <Data key="DataVersionKey" value="2" />
   <Group key="DWRInstGuidMapping">
+    <Group key="Clock">
+      <Data key="851d1dda-6d13-4230-b006-f54035c660fb/b68e5b9d-7828-482d-a282-930f990e3b3e" value="SPI_1_SCBCLK" />
+      <Data key="f5af4fca-2106-487e-958f-8f1b9fbb1a88/b68e5b9d-7828-482d-a282-930f990e3b3e" value="UART_1_SCBCLK" />
+    </Group>
     <Group key="Interrupt">
+      <Data key="024eda6c-8391-4765-87e0-89305eb721d0" value="Card_Detect_Interrupt" />
+      <Data key="356ffe00-7d49-48be-aec0-f4f8acff7331" value="intTxDma_1" />
       <Data key="851d1dda-6d13-4230-b006-f54035c660fb/bd067f71-3970-4ac5-b329-954cefcd6d5b" value="SPI_1_SCB_IRQ" />
       <Data key="b5f67179-5ee3-4b03-8e10-0d59c2f7c109" value="Card_Detect_Interrupt" />
+      <Data key="b881b78f-a4ee-446a-9fe4-091872dc99c0" value="intRxDma_1" />
       <Data key="f5af4fca-2106-487e-958f-8f1b9fbb1a88/9260d369-b684-4310-b925-f618d77b89d7" value="UART_1_SCB_IRQ" />
     </Group>
     <Group key="Pin">
@@ -31,10 +38,31 @@
     </Group>
   </Group>
   <Group key="Interrupt">
+    <Group key="356ffe00-7d49-48be-aec0-f4f8acff7331">
+      <Group key="CortexM4">
+        <Data key="Assigned" value="True" />
+        <Data key="Priority" value="6" />
+        <Data key="Vector" value="-1" />
+      </Group>
+    </Group>
+    <Group key="851d1dda-6d13-4230-b006-f54035c660fb/bd067f71-3970-4ac5-b329-954cefcd6d5b">
+      <Group key="CortexM4">
+        <Data key="Assigned" value="True" />
+        <Data key="Priority" value="6" />
+        <Data key="Vector" value="-1" />
+      </Group>
+    </Group>
     <Group key="b5f67179-5ee3-4b03-8e10-0d59c2f7c109">
       <Group key="CortexM4">
         <Data key="Assigned" value="True" />
         <Data key="Priority" value="7" />
+        <Data key="Vector" value="-1" />
+      </Group>
+    </Group>
+    <Group key="b881b78f-a4ee-446a-9fe4-091872dc99c0">
+      <Group key="CortexM4">
+        <Data key="Assigned" value="True" />
+        <Data key="Priority" value="6" />
         <Data key="Vector" value="-1" />
       </Group>
     </Group>
@@ -64,6 +92,54 @@
         <Data key="ph_align_clock_name" value="" />
         <Data key="plus_tolerance" value="10" />
         <Data key="scope" value="GLOBAL" />
+        <Data key="sourceClk_minus_acuracy_name" value="2.4" />
+        <Data key="sourceClk_plus_acuracy_name" value="2.4" />
+        <Data key="src_clk_id" value="2FB4EC85-8328-4C5A-9ED9-8B63060178EB" />
+        <Data key="src_clk_name" value="Clk_Peri" />
+        <Data key="start_on_reset" value="True" />
+        <Data key="uses_fract_divider" value="False" />
+      </Group>
+    </Group>
+    <Group key="LocalClks">
+      <Group key="851d1dda-6d13-4230-b006-f54035c660fb/b68e5b9d-7828-482d-a282-930f990e3b3e">
+        <Data key="check_tolerance" value="True" />
+        <Data key="derive_type" value="AUTO" />
+        <Data key="desired_freq" value="400" />
+        <Data key="desired_unit" value="3" />
+        <Data key="divider" value="125" />
+        <Data key="enabled" value="True" />
+        <Data key="fract_divider_denominator" value="0" />
+        <Data key="fract_divider_numerator" value="0" />
+        <Data key="minus_tolerance" value="100" />
+        <Data key="name" value="SPI_1_SCBCLK" />
+        <Data key="netlist_name" value="\SPI_1:SCBCLK\" />
+        <Data key="ph_align_clock_id" value="" />
+        <Data key="ph_align_clock_name" value="" />
+        <Data key="plus_tolerance" value="5" />
+        <Data key="scope" value="LOCAL" />
+        <Data key="sourceClk_minus_acuracy_name" value="2.4" />
+        <Data key="sourceClk_plus_acuracy_name" value="2.4" />
+        <Data key="src_clk_id" value="2FB4EC85-8328-4C5A-9ED9-8B63060178EB" />
+        <Data key="src_clk_name" value="Clk_Peri" />
+        <Data key="start_on_reset" value="True" />
+        <Data key="uses_fract_divider" value="False" />
+      </Group>
+      <Group key="f5af4fca-2106-487e-958f-8f1b9fbb1a88/b68e5b9d-7828-482d-a282-930f990e3b3e">
+        <Data key="check_tolerance" value="True" />
+        <Data key="derive_type" value="AUTO" />
+        <Data key="desired_freq" value="1.3824" />
+        <Data key="desired_unit" value="6" />
+        <Data key="divider" value="36" />
+        <Data key="enabled" value="True" />
+        <Data key="fract_divider_denominator" value="0" />
+        <Data key="fract_divider_numerator" value="0" />
+        <Data key="minus_tolerance" value="5" />
+        <Data key="name" value="UART_1_SCBCLK" />
+        <Data key="netlist_name" value="\UART_1:SCBCLK\" />
+        <Data key="ph_align_clock_id" value="" />
+        <Data key="ph_align_clock_name" value="" />
+        <Data key="plus_tolerance" value="5" />
+        <Data key="scope" value="LOCAL" />
         <Data key="sourceClk_minus_acuracy_name" value="2.4" />
         <Data key="sourceClk_plus_acuracy_name" value="2.4" />
         <Data key="src_clk_id" value="2FB4EC85-8328-4C5A-9ED9-8B63060178EB" />
@@ -153,7 +229,7 @@
         <Data key="desired_freq" value="32768" />
         <Data key="desired_unit" value="0" />
         <Data key="divider" value="0" />
-        <Data key="enabled" value="False" />
+        <Data key="enabled" value="True" />
         <Data key="minus_tolerance" value="0" />
         <Data key="name" value="WCO" />
         <Data key="netlist_name" value="WCO" />
@@ -642,7 +718,7 @@
     </Group>
     <Group key="4b7c5080-6c79-467d-9e7a-0d4bc4c1f6ac">
       <Group key="0">
-        <Data key="Port Format" value="9,5" />
+        <Data key="Port Format" value="12,5" />
       </Group>
     </Group>
     <Group key="4cca878b-77b5-471d-8aeb-ad6925202455">
@@ -652,22 +728,22 @@
     </Group>
     <Group key="851d1dda-6d13-4230-b006-f54035c660fb/6ab54762-7779-4044-8f78-8f0c3cc17648">
       <Group key="0">
-        <Data key="Port Format" value="9,0" />
+        <Data key="Port Format" value="12,0" />
       </Group>
     </Group>
     <Group key="851d1dda-6d13-4230-b006-f54035c660fb/36be6e88-4a0d-41df-a2e0-06e872a3b6e7">
       <Group key="0">
-        <Data key="Port Format" value="9,4" />
+        <Data key="Port Format" value="12,3" />
       </Group>
     </Group>
     <Group key="851d1dda-6d13-4230-b006-f54035c660fb/626488ba-448e-4b1b-8f21-ab800fa641d3">
       <Group key="0">
-        <Data key="Port Format" value="9,2" />
+        <Data key="Port Format" value="12,2" />
       </Group>
     </Group>
     <Group key="851d1dda-6d13-4230-b006-f54035c660fb/c8948441-ff15-42a0-9e51-75869d2ef747">
       <Group key="0">
-        <Data key="Port Format" value="9,1" />
+        <Data key="Port Format" value="12,1" />
       </Group>
     </Group>
     <Group key="4489fdd9-74eb-453d-addb-44b0b6d87b07">
@@ -730,7 +806,7 @@
     <Data key="CYDEV_CPUSS0_TRACE_DATA2" value="P75" />
     <Data key="CYDEV_CPUSS0_TRACE_DATA3" value="P74" />
     <Data key="CYDEV_DEBUGGING_DPS" value="SWD" />
-    <Data key="CYDEV_PMIC_MODE" value="DISABLED" />
+    <Data key="CYDEV_PMIC_MODE" value="ENABLED" />
     <Data key="CYDEV_POWER_MODE" value="LDO_LINEAR_REG_1_1V" />
     <Data key="CYDEV_SYSTEM_AREF_CURRENT" value="HIGH" />
     <Data key="CYDEV_SYSTEM_AREF_DEEPSLEEP" value="False" />
@@ -738,7 +814,7 @@
     <Data key="CYDEV_TEMPERATURE" value="-40C" />
     <Data key="CYDEV_TRACE_ENABLED" value="False" />
     <Data key="CYDEV_VARIABLE_VDDA" value="False" />
-    <Data key="CYDEV_VBAC_SUPPLY" value="VDDD" />
+    <Data key="CYDEV_VBAC_SUPPLY" value="DEDICATED" />
     <Data key="CYDEV_VBACKUP" value="3.3" />
     <Data key="CYDEV_VDD_NS" value="3.3" />
     <Data key="CYDEV_VDDA" value="3.3" />

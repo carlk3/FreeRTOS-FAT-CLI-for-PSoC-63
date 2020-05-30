@@ -73,6 +73,80 @@ static bool ValidateDateTime(uint32_t year, uint32_t month, uint32_t date, \
 static inline bool IsLeapYear(uint32_t );
 void synch_time();
 
+/*
+Reading RTC User Registers
+To start a read transaction, the firmware should set the
+READ bit in the BACKUP_RTC_RW register. When this bit
+is set, the RTC registers will be copied to user registers and
+frozen so that a coherent RTC value can safely be read by
+the firmware. The read transaction is completed by clearing
+the READ bit.
+The READ bit cannot be set if:
+■ RTC is still busy with a previous operation (that is, the
+RTC_BUSY bit in the BACKUP_STATUS register is set)
+■ WRITE bit in the BACKUP_RTC_RW register is set
+The firmware should verify that the above bits are not set
+before setting the READ bit.
+*/    
+static void readRTCUserRegisters(void)
+{    
+    while ((CY_RTC_BUSY == Cy_RTC_GetSyncStatus()) || (_FLD2BOOL(BACKUP_RTC_RW_WRITE, BACKUP_RTC_RW)))
+        ; // Spin
+    /* Setting RTC Read bit */
+    BACKUP_RTC_RW = BACKUP_RTC_RW_READ_Msk;
+
+    /* Clearing RTC Read bit */
+    BACKUP_RTC_RW = 0U;
+}
+
+void my_RTC_GetDateAndTime(cy_stc_rtc_config_t* dateTime)
+{
+    uint32_t tmpTime;
+    uint32_t tmpDate;
+
+    CY_ASSERT_L1(NULL != dateTime);
+
+    /* Read the current RTC time and date to validate the input parameters */
+    readRTCUserRegisters();
+
+    /* Write the AHB RTC registers date and time into the local variables and 
+    * updating the dateTime structure elements
+    */
+    tmpTime = BACKUP_RTC_TIME;
+    tmpDate = BACKUP_RTC_DATE;
+
+    dateTime->sec = Cy_RTC_ConvertBcdToDec(_FLD2VAL(BACKUP_RTC_TIME_RTC_SEC, tmpTime));
+    dateTime->min = Cy_RTC_ConvertBcdToDec(_FLD2VAL(BACKUP_RTC_TIME_RTC_MIN, tmpTime));
+    dateTime->hrFormat = ((_FLD2BOOL(BACKUP_RTC_TIME_CTRL_12HR, tmpTime)) ? CY_RTC_12_HOURS : CY_RTC_24_HOURS);
+
+    /* Read the current hour mode to know how many hour bits should be converted
+    * In the 24-hour mode, the hour value is presented in [21:16] bits in the 
+    * BCD format.
+    * In the 12-hour mode the hour value is presented in [20:16] bits in the BCD
+    * format and bit [21] is present: 0 - AM; 1 - PM. 
+    */
+    if (dateTime->hrFormat != CY_RTC_24_HOURS)
+    {
+        dateTime->hour = 
+        Cy_RTC_ConvertBcdToDec((tmpTime & CY_RTC_BACKUP_RTC_TIME_RTC_12HOUR) >> BACKUP_RTC_TIME_RTC_HOUR_Pos);
+
+        dateTime->amPm = ((0U != (tmpTime & CY_RTC_BACKUP_RTC_TIME_RTC_PM)) ? CY_RTC_PM : CY_RTC_AM);
+    }
+    else
+    {
+        dateTime->hour = Cy_RTC_ConvertBcdToDec(_FLD2VAL(BACKUP_RTC_TIME_RTC_HOUR, tmpTime));
+
+        dateTime->amPm = CY_RTC_AM;
+    }
+    dateTime->dayOfWeek = Cy_RTC_ConvertBcdToDec(_FLD2VAL(BACKUP_RTC_TIME_RTC_DAY, tmpTime));
+    
+    dateTime->date  = Cy_RTC_ConvertBcdToDec(_FLD2VAL(BACKUP_RTC_DATE_RTC_DATE, tmpDate));
+    dateTime->month = Cy_RTC_ConvertBcdToDec(_FLD2VAL(BACKUP_RTC_DATE_RTC_MON, tmpDate));
+    dateTime->year  = Cy_RTC_ConvertBcdToDec(_FLD2VAL(BACKUP_RTC_DATE_RTC_YEAR, tmpDate));
+}
+
+
+
 /*******************************************************************************
 * Function Name: PrintDateTime
 ********************************************************************************
@@ -92,7 +166,7 @@ void PrintDateTime(void)
     cy_stc_rtc_config_t dateTime;
     
     /*Get the current RTC time and date */
-    Cy_RTC_GetDateAndTime(&dateTime);
+    my_RTC_GetDateAndTime(&dateTime);
     
     printf("\r\nCurrent date and time\r\n");
     printf("Date %02u/%02u/%02u\r\n",(uint16_t) dateTime.date, 
@@ -246,7 +320,7 @@ void synch_time() {
     cy_stc_rtc_config_t dateTime;
     
     /*Get the current RTC time and date */
-    Cy_RTC_GetDateAndTime(&dateTime);
+    my_RTC_GetDateAndTime(&dateTime);
     
     // The values of the members tm_wday and tm_yday are ignored
     
@@ -289,7 +363,57 @@ time_t FreeRTOS_time( time_t *pxTime ) {
         synch_time();
     
     time_t epochtime = (xTaskGetTickCount() / configTICK_RATE_HZ) + offset;     
+    
+    if (0 == epochtime % 60*60) // Synch to RTC once an hour
+        synch_time();
         
+    if (pxTime)
+        *pxTime = epochtime;
+    
+    return epochtime;    
+}
+
+time_t new_FreeRTOS_time( time_t *pxTime ) { // FIXME
+    struct tm timeinfo;
+    cy_stc_rtc_config_t dateTime;
+            
+    /*Get the current RTC time and date */
+    my_RTC_GetDateAndTime(&dateTime);
+    
+    // The values of the members tm_wday and tm_yday are ignored
+    
+//Member	Type	Meaning	                Range
+//tm_sec	int	seconds after the minute	0-61*
+    timeinfo.tm_sec = dateTime.sec;    
+//tm_min	int	minutes after the hour	    0-59
+    timeinfo.tm_min = dateTime.min;
+//tm_hour	int	hours since midnight	    0-23
+    if (CY_RTC_12_HOURS == dateTime.hrFormat)
+        if (CY_RTC_AM == dateTime.amPm) 
+            timeinfo.tm_hour = dateTime.hour - 1;           
+        else       
+           timeinfo.tm_hour = dateTime.hour - 1 + 12;
+    else
+        timeinfo.tm_hour = dateTime.hour;        
+//  tm_mday	int	day of the month	        1-31
+    timeinfo.tm_mday = dateTime.date;
+//  tm_mon	int	months since January	    0-11
+    timeinfo.tm_mon = dateTime.month - 1;
+//  tm_year	int	years since 1900	
+    timeinfo.tm_year = dateTime.year + 100;
+//  tm_wday	int	days since Sunday	    0-6
+    timeinfo.tm_wday = -1;
+//  tm_yday	int	days since January 1	0-365
+    timeinfo.tm_wday = -1;
+//  tm_isdst	int	Daylight Saving Time flag	
+//  The Daylight Saving Time flag (tm_isdst) is greater than zero 
+//    if Daylight Saving Time is in effect, 
+//    zero if Daylight Saving Time is not in effect, 
+//    and less than zero if the information is not available.    
+    timeinfo.tm_isdst = -1;
+        
+    time_t epochtime = mktime ( &timeinfo );        // s since epoch    
+    
     if (pxTime)
         *pxTime = epochtime;
     

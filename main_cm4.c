@@ -18,39 +18,49 @@
 // FreeRTOS:
 #include "FreeRTOS.h"
 #include <task.h>
+#include "FreeRTOS_CLI.h"
 
-extern bool die;
-extern void CLI_Start();
+#include "uart_cli.h"
+
 extern void register_fs_tests();
-extern void PrintDateTime(void);
 
-void my_assert_func (const char *file, int line, const char *func, const char *pred) {
-    fflush(stdout);
-    printf("assertion \"%s\" failed: file \"%s\", line %d, function: %s\n", pred, file, line, func);
-    fflush(stdout);        
-#if !defined(NDEBUG)
-    Cy_SysLib_AssertFailed(file, line); 
-#else
-    Cy_SysLib_Halt(0UL);
-#endif    
+/*-----------------------------------------------------------*/
+extern void my_test();
+//extern void show_default();
+static BaseType_t test(char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString) {
+	(void) pcCommandString;
+	(void) pcWriteBuffer;
+	(void) xWriteBufferLen;
+
+    my_test();
+
+	return pdFALSE;
 }
+static const CLI_Command_Definition_t xTest = { 
+    "test", /* The command string to type. */
+    "\ntest:\n Quick test\n", 
+    test, /* The function to run. */
+    0 /* No parameters are expected. */
+};
+/*-----------------------------------------------------------*/
+
 
 int main(void) {
 
 	__enable_irq(); /* Enable global interrupts. */
 
 	/* Place your initialization/startup code here (e.g. MyInst_Start()) */
-   
-    CLI_Start();     
-    register_fs_tests();        
     
-    /* Initialize RTC */
-    if(Cy_RTC_Init(&RTC_1_config) != CY_RTC_SUCCESS)
-    {
-        printf("RTC initialization failed \r\n");
-        CY_ASSERT(0); /* If RTC initialization failed */
-    }        
-    PrintDateTime();   
+// Don't do this, it sets time back to Date 01/01/00 Time 00:00:00    
+//    /* Initialize RTC */
+//    RTC_1_Start();
+    
+    // Configures the supercapacitor charger circuit:
+    Cy_SysPm_BackupSuperCapCharge(CY_SYSPM_SC_CHARGE_ENABLE);    
+  
+    CLI_Start();     
+    register_fs_tests();   
+	FreeRTOS_CLIRegisterCommand(&xTest);            
     
     vTaskStartScheduler();  // Will never return
 	configASSERT(!"It will never get here");
@@ -100,9 +110,21 @@ void my_printf(const char *pcFormat, ...) {
 	vsnprintf(pcBuffer, sizeof(pcBuffer), pcFormat, xArgs);
 	va_end(xArgs); 
     fflush(stdout);
-    printf("%p, %s: %s", xTaskGetCurrentTaskHandle(),
-			pcTaskGetName(xTaskGetCurrentTaskHandle()), pcBuffer);
+//    printf("%p, %s: %s", xTaskGetCurrentTaskHandle(),
+//			pcTaskGetName(xTaskGetCurrentTaskHandle()), pcBuffer);
+    printf("%s", pcBuffer);
     fflush(stdout);    
 }
 
+
+void my_assert_func (const char *file, int line, const char *func, const char *pred) {
+    fflush(stdout);
+    printf("assertion \"%s\" failed: file \"%s\", line %d, function: %s\n", pred, file, line, func);
+    fflush(stdout);        
+#if !defined(NDEBUG)
+    Cy_SysLib_AssertFailed(file, line); 
+#else
+    Cy_SysLib_Halt(0UL);
+#endif    
+}
 /* [] END OF FILE */
