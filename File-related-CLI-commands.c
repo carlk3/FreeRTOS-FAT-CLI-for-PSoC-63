@@ -242,7 +242,7 @@ BaseType_t xParameterStringLength, xReturn = pdTRUE;
 static FF_FILE *pxFile = NULL;
 int iChar;
 size_t xByte;
-size_t xColumns = 50U;
+size_t xColumns = 80U;
 
 	/* Ensure there is always a null terminator after each character written. */
 	memset( pcWriteBuffer, 0x00, xWriteBufferLen );

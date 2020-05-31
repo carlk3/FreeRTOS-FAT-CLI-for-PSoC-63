@@ -17,7 +17,6 @@
 
 #include "crc.h"
 
-#if MBED_CONF_SD_CRC_ENABLED
 static const char m_Crc7Table[] = {0x00, 0x09, 0x12, 0x1B, 0x24, 0x2D, 0x36,
 	0x3F, 0x48, 0x41, 0x5A, 0x53, 0x6C, 0x65, 0x7E, 0x77, 0x19, 0x10, 0x0B,
 	0x02, 0x3D, 0x34, 0x2F, 0x26, 0x51, 0x58, 0x43, 0x4A, 0x75, 0x7C, 0x67,
@@ -95,5 +94,10 @@ unsigned short crc16(const char* data, int length)
 	//Return the calculated checksum
 	return crc;
 }
-#endif
+
+void update_crc16(unsigned short *pCrc16, const char data[], size_t length) {
+	for (size_t i = 0; i < length; i++) {
+		*pCrc16 = (*pCrc16 << 8) ^ m_Crc16Table[((*pCrc16 >> 8) ^ data[i]) & 0x00FF];
+	}    
+}
 /* [] END OF FILE */

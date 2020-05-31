@@ -155,8 +155,11 @@
 #include "sd_spi.h"
 #include "sd_card.h"
 
-#if MBED_CONF_SD_CRC_ENABLED
+#define SD_CRC_ENABLED 1
+
+#if SD_CRC_ENABLED
 #  include "crc.h"
+    static bool crc_on = true;
 #endif
 
 // Hardware Configuration of the SPI and SD Card "objects"
@@ -272,11 +275,9 @@ static uint8_t sd_cmd_spi(sd_card_t *this, cmdSupported cmd, uint32_t arg) {
 	cmdPacket[3] = (arg >> 8);
 	cmdPacket[4] = (arg >> 0);
 
-#if MBED_CONF_SD_CRC_ENABLED
-	uint32_t crc;
-	if (_crc_on) {
-		_crc7.compute((void *)cmdPacket, 5, &crc);
-		cmdPacket[5] = (char)(crc | 0x01);
+#if SD_CRC_ENABLED
+	if (crc_on) {
+        cmdPacket[5] = (crc7(cmdPacket, 5) << 1) | 0x01;
 	} else
 #endif
 	{
@@ -536,10 +537,11 @@ static int sd_initialise_card(sd_card_t *this) {
 		return status;
 	}
 
-#if MBED_CONF_SD_CRC_ENABLED
-	if (_crc_on) {
+#if SD_CRC_ENABLED
+	if (crc_on) {
 		// Enable CRC
-		status = _cmd(CMD59_CRC_ON_OFF, _crc_on);
+        // int sd_cmd(sd_card_t *this, cmdSupported cmd, uint32_t arg, bool isAcmd, uint32_t *resp)
+		status = sd_cmd(this, CMD59_CRC_ON_OFF, 1, 0, 0);
 	}
 #endif
 
@@ -599,10 +601,10 @@ static int sd_initialise_card(sd_card_t *this) {
 		DBG_PRINTF("Card Initialized: Version 1.x Card\n");
 	}
 
-#if MBED_CONF_SD_CRC_ENABLED
-	if (!_crc_on) {
+#if SD_CRC_ENABLED
+	if (!crc_on) {
 		// Disable CRC
-		status = _cmd(CMD59_CRC_ON_OFF, _crc_on);
+		status = sd_cmd(this, CMD59_CRC_ON_OFF, 0, 0, 0);
 	}
 #else
 	status = sd_cmd(this, CMD59_CRC_ON_OFF, 0, 0, 0);
@@ -664,9 +666,8 @@ uint64_t sd_sectors(sd_card_t *this) {
 		hc_c_size = ext_bits(csd, 69, 48);     // device size : C_SIZE : [69:48]
 		blocks = (hc_c_size + 1) << 10; // block count = C_SIZE+1) * 1K byte (512B is block size)
 		DBG_PRINTF("SDHC/SDXC Card: hc_c_size: %" PRIu32 "\n", hc_c_size);
-		uint32_t b = blocks;
-		DBG_PRINTF("Sectors: %8lu\n", (unsigned long)b);
-		DBG_PRINTF("Capacity: %8lu MB\n", (unsigned long)(b / (2048U)));
+		DBG_PRINTF("Sectors: %8llu\n", blocks);
+		DBG_PRINTF("Capacity: %8llu MB\n", (blocks / (2048U)));
 		break;
 
 	default:
@@ -835,15 +836,15 @@ static int sd_read_bytes(sd_card_t *this, uint8_t *buffer, uint32_t length) {
 	crc = (sd_spi_write(this, SPI_FILL_CHAR) << 8);
 	crc |= sd_spi_write(this, SPI_FILL_CHAR);
 
-#if MBED_CONF_SD_CRC_ENABLED
-	if (_crc_on) {
+#if SD_CRC_ENABLED
+	if (crc_on) {
 		uint32_t crc_result;
 		// Compute and verify checksum
-		_crc16.compute((void *)buffer, length, &crc_result);
+		crc_result = crc16((void *)buffer, length);
 		if ((uint16_t)crc_result != crc) {
-			debug_if(SD_DBG, "_read_bytes: Invalid CRC received 0x%" PRIx16 " result of computation 0x%" PRIx16 "\n",
+			DBG_PRINTF("_read_bytes: Invalid CRC received 0x%" PRIx16 " result of computation 0x%" PRIx16 "\n",
 					crc, (uint16_t)crc_result);
-			_deselect();
+			sd_deselect(this);
 			return SD_BLOCK_DEVICE_ERROR_CRC;
 		}
 	}
@@ -869,13 +870,13 @@ static int sd_read_block(sd_card_t *this, uint8_t *buffer, uint32_t length) {
 	crc = (sd_spi_write(this, SPI_FILL_CHAR) << 8);
 	crc |= sd_spi_write(this, SPI_FILL_CHAR);
 
-#if MBED_CONF_SD_CRC_ENABLED
-	if (_crc_on) {
+#if SD_CRC_ENABLED
+	if (crc_on) {
 		uint32_t crc_result;
 		// Compute and verify checksum
-		_crc16.compute((void *)buffer, length, &crc_result);
+		crc_result = crc16((void *)buffer, length);
 		if ((uint16_t)crc_result != crc) {
-			debug_if(SD_DBG, "_read_bytes: Invalid CRC received 0x%" PRIx16 " result of computation 0x%" PRIx16 "\n",
+			DBG_PRINTF("_read_bytes: Invalid CRC received 0x%" PRIx16 " result of computation 0x%" PRIx16 "\n",
 					crc, (uint16_t)crc_result);
 			return SD_BLOCK_DEVICE_ERROR_CRC;
 		}
@@ -941,7 +942,7 @@ int sd_read_blocks(sd_card_t *this, uint8_t *buffer, uint64_t ulSectorNumber, ui
 
 static uint8_t sd_write_block(sd_card_t *this, const uint8_t *buffer, uint8_t token, uint32_t length) {
 
-	uint32_t crc = (~0);
+	uint16_t crc = (~0);
 	uint8_t response = 0xFF;
 
 	// indicate start of block
@@ -951,10 +952,10 @@ static uint8_t sd_write_block(sd_card_t *this, const uint8_t *buffer, uint8_t to
 	bool ret = sd_spi_transfer(this, buffer, NULL, length);
 	configASSERT(ret);
 
-#if MBED_CONF_SD_CRC_ENABLED
-	if (_crc_on) {
+#if SD_CRC_ENABLED
+	if (crc_on) {
 		// Compute CRC
-		_crc16.compute((void *)buffer, length, &crc);
+        crc = crc16((void *)buffer, length);
 	}
 #endif
 
