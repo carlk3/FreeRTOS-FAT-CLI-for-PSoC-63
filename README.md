@@ -9,6 +9,8 @@ FreeRTOS+FAT Media Driver (ff_sddisk.c) for PSoC 6 using SPI, based on SDBlockDe
 * Supports multiple SD Cards per SPI
 * Detects and responds to SD Card removal
 * Supports Real Time Clock for maintaining file and directory time stamps
+* Supports Cyclic Redundancy Check (CRC)
+* Exploits Direct Memory Access (DMA)
 * Integrated with the FreeRTOS component in the Cypress Peripheral Driver Library (PDL)
 
 ## Limitations:
