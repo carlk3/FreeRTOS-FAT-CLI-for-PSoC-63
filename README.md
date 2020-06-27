@@ -41,6 +41,10 @@ FreeRTOS+FAT Media Driver (ff_sddisk.c) for PSoC 6 using SPI, based on SDBlockDe
 Also, you have to cut the CS jumper on the AdaLogger.
 ![image](https://github.com/carlk3/FreeRTOS-FAT-CLI-for-PSoC-63/blob/master/images/IMG_1230.JPG "Cutting CS")
  
+ * UPDATE: I also have this running on a triple-stuffed [Clicker 2 for PSoC® 6](https://www.mikroe.com/clicker-2-psoc6) with two [microSD clicks](https://www.mikroe.com/microsd-click) and a [MMC/SD Board](https://www.mikroe.com/mmc-sd-board):
+ ![image](https://github.com/carlk3/FreeRTOS-FAT-CLI-for-PSoC-63/blob/master/images/IMG_1288.JPG "Clicker 2")
+ More photos at https://photos.app.goo.gl/3Er67YEAEypeP7dP8.
+ 
 ## Getting Started; Software
 * Install source code (outline):
   * md Lab-Project-FreeRTOS-FAT
