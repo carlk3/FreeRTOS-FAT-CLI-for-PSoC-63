@@ -98,11 +98,8 @@ static void prvCreateFileInfoString( char *pcBuffer, FF_FindData_t *pxFindStruct
 /*
  * Copies an existing file into a newly created file.
  */
-static BaseType_t prvPerformCopy( const char *pcSourceFile,
-							size_t lSourceFileLength,
-							const char *pcDestinationFile,
-							char *pxWriteBuffer,
-							size_t xWriteBufferLen );
+static BaseType_t prvPerformCopy(const char *pcSourceFile, size_t lSourceFileLength, const char *pcDestinationFile,
+		char *pxWriteBuffer, size_t xWriteBufferLen);
 
 /*
  * Implements the DIR command.
@@ -147,82 +144,65 @@ static BaseType_t prvPWDCommand( char *pcWriteBuffer, size_t xWriteBufferLen, co
 /* Structure that defines the DIR command line command, which lists all the
 files in the current directory. */
 static const CLI_Command_Definition_t xDIR =
-{
-	"dir", /* The command string to type. */
-	"\r\ndir:\r\n Lists the files in the current directory\r\n",
-	prvDIRCommand, /* The function to run. */
+{ "dir", /* The command string to type. */
+"\r\ndir:\r\n Lists the files in the current directory\r\n", prvDIRCommand, /* The function to run. */
 	0 /* No parameters are expected. */
 };
 
 /* Structure that defines the CD command line command, which changes the
 working directory. */
 static const CLI_Command_Definition_t xCD =
-{
-	"cd", /* The command string to type. */
-	"\r\ncd <dir name>:\r\n Changes the working directory\r\n",
-	prvCDCommand, /* The function to run. */
+{ "cd", /* The command string to type. */
+"\r\ncd <dir name>:\r\n Changes the working directory\r\n", prvCDCommand, /* The function to run. */
 	1 /* One parameter is expected. */
 };
 
 /* Structure that defines the TYPE command line command, which prints the
 contents of a file to the console. */
 static const CLI_Command_Definition_t xTYPE =
-{
-	"type", /* The command string to type. */
-	"\r\ntype <filename>:\r\n Prints file contents to the terminal\r\n",
-	prvTYPECommand, /* The function to run. */
+{ "type", /* The command string to type. */
+"\r\ntype <filename>:\r\n Prints file contents to the terminal\r\n", prvTYPECommand, /* The function to run. */
 	1 /* One parameter is expected. */
 };
 
 /* Structure that defines the DEL command line command, which deletes a file. */
 static const CLI_Command_Definition_t xDEL =
-{
-	"del", /* The command string to type. */
-	"\r\ndel <filename>:\r\n deletes a file (use rmdir to delete a directory)\r\n",
-	prvDELCommand, /* The function to run. */
+{ "del", /* The command string to type. */
+"\r\ndel <filename>:\r\n deletes a file (use rmdir to delete a directory)\r\n", prvDELCommand, /* The function to run. */
 	1 /* One parameter is expected. */
 };
 
 /* Structure that defines the RMDIR command line command, which deletes a directory. */
 static const CLI_Command_Definition_t xRMDIR =
-{
-	"rmdir", /* The command string to type. */
-	"\r\nrmdir <directory name>:\r\n deletes a directory\r\n",
-	prvRMDIRCommand, /* The function to run. */
+{ "rmdir", /* The command string to type. */
+"\r\nrmdir <directory name>:\r\n deletes a directory\r\n", prvRMDIRCommand, /* The function to run. */
 	1 /* One parameter is expected. */
 };
 
 /* Structure that defines the COPY command line command, which deletes a file. */
 static const CLI_Command_Definition_t xCOPY =
-{
-	"copy", /* The command string to type. */
-	"\r\ncopy <source file> <dest file>:\r\n Copies <source file> to <dest file>\r\n",
-	prvCOPYCommand, /* The function to run. */
+{ "copy", /* The command string to type. */
+"\r\ncopy <source file> <dest file>:\r\n Copies <source file> to <dest file>\r\n", prvCOPYCommand, /* The function to run. */
 	2 /* Two parameters are expected. */
 };
 
 /* Structure that defines the COPY command line command, which deletes a file. */
 static const CLI_Command_Definition_t xREN =
-{
-	"ren", /* The command string to type. */
-	"\r\nren <source file> <dest file>:\r\n Moves <source file> to <dest file>\r\n",
-	prvRENCommand, /* The function to run. */
+{ "ren", /* The command string to type. */
+"\r\nren <source file> <dest file>:\r\n Moves <source file> to <dest file>\r\n", prvRENCommand, /* The function to run. */
 	2 /* Two parameters are expected. */
 };
 
 /* Structure that defines the pwd command line command, which prints the current working directory. */
 static const CLI_Command_Definition_t xPWD =
-{
-	"pwd", /* The command string to type. */
-	"\r\npwd:\r\n Print Working Directory\r\n",
-	prvPWDCommand, /* The function to run. */
+{ "pwd", /* The command string to type. */
+"\r\npwd:\r\n Print Working Directory\r\n", prvPWDCommand, /* The function to run. */
 	0 /* No parameters are expected. */
 };
 
 /*-----------------------------------------------------------*/
 
-void vRegisterFileSystemCLICommands( void )
-{
+void vRegisterFileSystemCLICommands(void) {
 	/* Register all the command line commands defined immediately above. */
 	FreeRTOS_CLIRegisterCommand( &xDIR );
 	FreeRTOS_CLIRegisterCommand( &xCD );
@@ -235,8 +215,7 @@ void vRegisterFileSystemCLICommands( void )
 }
 /*-----------------------------------------------------------*/
 
-static BaseType_t prvTYPECommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
-{
+static BaseType_t prvTYPECommand(char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString) {
 const char *pcParameter;
 BaseType_t xParameterStringLength, xReturn = pdTRUE;
 static FF_FILE *pxFile = NULL;
@@ -251,19 +230,15 @@ size_t xColumns = 80U;
 	configASSERT( xWriteBufferLen > ( strlen( cliNEW_LINE ) * 2 ) );
 	xWriteBufferLen -= strlen( cliNEW_LINE );
 
-	if( xWriteBufferLen < xColumns )
-	{
+	if (xWriteBufferLen < xColumns) {
 		/* Ensure the loop that uses xColumns as an end condition does not
 		write off the end of the buffer. */
 		xColumns = xWriteBufferLen;
 	}
 
-	if( pxFile == NULL )
-	{
+	if (pxFile == NULL) {
 		/* The file has not been opened yet.  Find the file name. */
-		pcParameter = FreeRTOS_CLIGetParameter
-						(
-							pcCommandString,		/* The command string itself. */
+		pcParameter = FreeRTOS_CLIGetParameter(pcCommandString, /* The command string itself. */
 							1,						/* Return the first parameter. */
 							&xParameterStringLength	/* Store the parameter string length. */
 						);
@@ -275,29 +250,23 @@ size_t xColumns = 80U;
 		pxFile = ff_fopen( pcParameter, "r" );
 	}
 
-	if( pxFile != NULL )
-	{
+	if (pxFile != NULL) {
 		/* Read the next chunk of data from the file. */
-		for( xByte = 0; xByte < xColumns; xByte++ )
-		{
+		for (xByte = 0; xByte < xColumns; xByte++) {
 			iChar = ff_fgetc( pxFile );
 
-			if( iChar == -1 )
-			{
+			if (iChar == -1) {
 				/* No more characters to return. */
 				ff_fclose( pxFile );
 				pxFile = NULL;
 				break;
-			}
-			else
-			{
+			} else {
 				pcWriteBuffer[ xByte ] = ( char ) iChar;
 			}
 		}
 	}
 
-	if( pxFile == NULL )
-	{
+	if (pxFile == NULL) {
 		/* Either the file was not opened, or all the data from the file has
 		been returned and the file is now closed. */
 		xReturn = pdFALSE;
@@ -309,17 +278,14 @@ size_t xColumns = 80U;
 }
 /*-----------------------------------------------------------*/
 
-static BaseType_t prvCDCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
-{
+static BaseType_t prvCDCommand(char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString) {
 const char *pcParameter;
 BaseType_t xParameterStringLength;
 int iReturned;
 size_t xStringLength;
 
 	/* Obtain the parameter string. */
-	pcParameter = FreeRTOS_CLIGetParameter
-					(
-						pcCommandString,		/* The command string itself. */
+	pcParameter = FreeRTOS_CLIGetParameter(pcCommandString, /* The command string itself. */
 						1,						/* Return the first parameter. */
 						&xParameterStringLength	/* Store the parameter string length. */
 					);
@@ -330,14 +296,11 @@ size_t xStringLength;
 	/* Attempt to move to the requested directory. */
 	iReturned = ff_chdir( pcParameter );
 
-	if( iReturned == FF_ERR_NONE )
-	{
+	if (iReturned == FF_ERR_NONE) {
 		sprintf( pcWriteBuffer, "In: " );
 		xStringLength = strlen( pcWriteBuffer );
 		ff_getcwd( &( pcWriteBuffer[ xStringLength ] ), ( unsigned char ) ( xWriteBufferLen - xStringLength ) );
-	}
-	else
-	{
+	} else {
 		sprintf( pcWriteBuffer, "Error" );
 	}
 
@@ -347,8 +310,7 @@ size_t xStringLength;
 }
 /*-----------------------------------------------------------*/
 
-static BaseType_t prvDIRCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
-{
+static BaseType_t prvDIRCommand(char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString) {
 static FF_FindData_t *pxFindStruct = NULL;
 int iReturned;
 BaseType_t xReturn = pdFALSE;
@@ -360,46 +322,34 @@ BaseType_t xReturn = pdFALSE;
 	configASSERT( xWriteBufferLen > ( strlen( cliNEW_LINE ) * 2 ) );
 	xWriteBufferLen -= strlen( cliNEW_LINE );
 
-	if( pxFindStruct == NULL )
-	{
+	if (pxFindStruct == NULL) {
 		/* This is the first time this function has been executed since the Dir
 		command was run.  Create the find structure. */
 		pxFindStruct = ( FF_FindData_t * ) pvPortMalloc( sizeof( FF_FindData_t ) );
 
-		if( pxFindStruct != NULL )
-		{
+		if (pxFindStruct != NULL) {
 			memset( pxFindStruct, 0x00, sizeof( FF_FindData_t ) );
 			iReturned = ff_findfirst( "", pxFindStruct );
 
-			if( iReturned == FF_ERR_NONE )
-			{
+			if (iReturned == FF_ERR_NONE) {
 				prvCreateFileInfoString( pcWriteBuffer, pxFindStruct );
 				xReturn = pdPASS;
-			}
-			else
-			{
+			} else {
 				snprintf( pcWriteBuffer, xWriteBufferLen, "Error: ff_findfirst() failed." );
 				pxFindStruct = NULL;
 			}
-		}
-		else
-		{
+		} else {
 			snprintf( pcWriteBuffer, xWriteBufferLen, "Failed to allocate RAM (using heap_4.c will prevent fragmentation)." );
 		}
-	}
-	else
-	{
+	} else {
 		/* The find struct has already been created.  Find the next file in
 		the directory. */
 		iReturned = ff_findnext( pxFindStruct );
 
-		if( iReturned == FF_ERR_NONE )
-		{
+		if (iReturned == FF_ERR_NONE) {
 			prvCreateFileInfoString( pcWriteBuffer, pxFindStruct );
 			xReturn = pdPASS;
-		}
-		else
-		{
+		} else {
 			vPortFree( pxFindStruct );
 			pxFindStruct = NULL;
 
@@ -414,8 +364,7 @@ BaseType_t xReturn = pdFALSE;
 }
 /*-----------------------------------------------------------*/
 
-static BaseType_t prvRMDIRCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
-{
+static BaseType_t prvRMDIRCommand(char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString) {
 const char *pcParameter;
 BaseType_t xParameterStringLength;
 int iReturned;
@@ -424,9 +373,7 @@ int iReturned;
 	( void ) xWriteBufferLen;
 
 	/* Obtain the parameter string. */
-	pcParameter = FreeRTOS_CLIGetParameter
-					(
-						pcCommandString,		/* The command string itself. */
+	pcParameter = FreeRTOS_CLIGetParameter(pcCommandString, /* The command string itself. */
 						1,						/* Return the first parameter. */
 						&xParameterStringLength	/* Store the parameter string length. */
 					);
@@ -437,12 +384,9 @@ int iReturned;
 	/* Attempt to delete the directory. */
 	iReturned = ff_rmdir( pcParameter );
 
-	if( iReturned == FF_ERR_NONE )
-	{
+	if (iReturned == FF_ERR_NONE) {
 		sprintf( pcWriteBuffer, "%s was deleted", pcParameter );
-	}
-	else
-	{
+	} else {
 		sprintf( pcWriteBuffer, "Error.  %s was not deleted", pcParameter );
 	}
 
@@ -452,19 +396,13 @@ int iReturned;
 }
 /*-----------------------------------------------------------*/
 
-static BaseType_t prvDELCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
-{
+static BaseType_t prvDELCommand(char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString) {
 const char *pcParameter;
 BaseType_t xParameterStringLength;
 int iReturned;
 
-	/* This function assumes xWriteBufferLen is large enough! */
-	( void ) xWriteBufferLen;
-
 	/* Obtain the parameter string. */
-	pcParameter = FreeRTOS_CLIGetParameter
-					(
-						pcCommandString,		/* The command string itself. */
+	pcParameter = FreeRTOS_CLIGetParameter(pcCommandString, /* The command string itself. */
 						1,						/* Return the first parameter. */
 						&xParameterStringLength	/* Store the parameter string length. */
 					);
@@ -475,23 +413,16 @@ int iReturned;
 	/* Attempt to delete the file. */
 	iReturned = ff_remove( pcParameter );
 
-	if( iReturned == FF_ERR_NONE )
-	{
-		sprintf( pcWriteBuffer, "%s was deleted", pcParameter );
+	if (iReturned == FF_ERR_NONE) {
+		snprintf(pcWriteBuffer, xWriteBufferLen, "%s was deleted\n", pcParameter);
+	} else {
+		snprintf(pcWriteBuffer, xWriteBufferLen, "Error.  %s was not deleted\n", pcParameter);
 	}
-	else
-	{
-		sprintf( pcWriteBuffer, "Error.  %s was not deleted", pcParameter );
-	}
-
-	strcat( pcWriteBuffer, cliNEW_LINE );
-
 	return pdFALSE;
 }
 /*-----------------------------------------------------------*/
 
-static BaseType_t prvCOPYCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
-{
+static BaseType_t prvCOPYCommand(char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString) {
 char *pcSourceFile;
 const char *pcDestinationFile;
 BaseType_t xParameterStringLength;
@@ -499,9 +430,7 @@ long lSourceLength, lDestinationLength = 0;
 FF_Stat_t xStat;
 
 	/* Obtain the name of the destination file. */
-	pcDestinationFile = FreeRTOS_CLIGetParameter
-						(
-							pcCommandString,		/* The command string itself. */
+	pcDestinationFile = FreeRTOS_CLIGetParameter(pcCommandString, /* The command string itself. */
 							2,						/* Return the second parameter. */
 							&xParameterStringLength	/* Store the parameter string length. */
 						);
@@ -510,9 +439,7 @@ FF_Stat_t xStat;
 	configASSERT( pcDestinationFile );
 
 	/* Obtain the name of the source file. */
-	pcSourceFile = ( char * ) FreeRTOS_CLIGetParameter
-								(
-									pcCommandString,		/* The command string itself. */
+	pcSourceFile = (char *) FreeRTOS_CLIGetParameter(pcCommandString, /* The command string itself. */
 									1,						/* Return the first parameter. */
 									&xParameterStringLength	/* Store the parameter string length. */
 								);
@@ -524,55 +451,39 @@ FF_Stat_t xStat;
 	pcSourceFile[ xParameterStringLength ] = 0x00;
 
 	/* See if the source file exists, obtain its length if it does. */
-	if( ff_stat( pcSourceFile, &xStat ) == FF_ERR_NONE )
-	{
+	if (ff_stat(pcSourceFile, &xStat) == FF_ERR_NONE) {
 		lSourceLength = xStat.st_size;
-	}
-	else
-	{
+	} else {
 		lSourceLength = 0;
 	}
 
-	if( lSourceLength == 0 )
-	{
+	if (lSourceLength == 0) {
 		sprintf( pcWriteBuffer, "Source file does not exist" );
-	}
-	else
-	{
+	} else {
 		/* See if the destination file exists. */
-		if( ff_stat( pcDestinationFile, &xStat ) == FF_ERR_NONE )
-		{
+		if (ff_stat(pcDestinationFile, &xStat) == FF_ERR_NONE) {
 			lDestinationLength = xStat.st_size;
-		}
-		else
-		{
+		} else {
 			lDestinationLength = 0;
 		}
 
-		if( xStat.st_mode == FF_IFDIR )
-		{
+		if (xStat.st_mode == FF_IFDIR) {
 			sprintf( pcWriteBuffer, "Error: Destination is a directory not a file" );
 
 			/* Set lDestinationLength to a non-zero value just to prevent an
 			attempt to copy the file. */
 			lDestinationLength = 1;
-		}
-		else if( lDestinationLength != 0 )
-		{
+		} else if (lDestinationLength != 0) {
 			sprintf( pcWriteBuffer, "Error: Destination file already exists" );
 		}
 	}
 
 	/* Continue only if the source file exists and the destination file does
 	not exist. */
-	if( ( lSourceLength != 0 ) && ( lDestinationLength == 0 ) )
-	{
-		if( prvPerformCopy( pcSourceFile, lSourceLength, pcDestinationFile, pcWriteBuffer, xWriteBufferLen ) == pdPASS )
-		{
+	if ((lSourceLength != 0) && (lDestinationLength == 0)) {
+		if (prvPerformCopy(pcSourceFile, lSourceLength, pcDestinationFile, pcWriteBuffer, xWriteBufferLen) == pdPASS) {
 			sprintf( pcWriteBuffer, "Copy made" );
-		}
-		else
-		{
+		} else {
 			sprintf( pcWriteBuffer, "Error during copy" );
 		}
 	}
@@ -583,16 +494,13 @@ FF_Stat_t xStat;
 }
 /*-----------------------------------------------------------*/
 
-static BaseType_t prvRENCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
-{
+static BaseType_t prvRENCommand(char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString) {
 char *pcSourceFile;
 const char *pcDestinationFile;
 BaseType_t xParameterStringLength;
 
 	/* Obtain the name of the destination file. */
-	pcDestinationFile = FreeRTOS_CLIGetParameter
-						(
-							pcCommandString,		/* The command string itself. */
+	pcDestinationFile = FreeRTOS_CLIGetParameter(pcCommandString, /* The command string itself. */
 							2,						/* Return the second parameter. */
 							&xParameterStringLength	/* Store the parameter string length. */
 						);
@@ -601,9 +509,7 @@ BaseType_t xParameterStringLength;
 	configASSERT( pcDestinationFile );
 
 	/* Obtain the name of the source file. */
-	pcSourceFile = ( char * ) FreeRTOS_CLIGetParameter
-								(
-									pcCommandString,		/* The command string itself. */
+	pcSourceFile = (char *) FreeRTOS_CLIGetParameter(pcCommandString, /* The command string itself. */
 									1,						/* Return the first parameter. */
 									&xParameterStringLength	/* Store the parameter string length. */
 								);
@@ -621,8 +527,7 @@ BaseType_t xParameterStringLength;
     int ec = ff_rename(pcSourceFile, pcDestinationFile, false);
     if (ec) {
 			int error = stdioGET_ERRNO();
-			snprintf( pcWriteBuffer, xWriteBufferLen, "%s: ff_rename error: %s, (%d)\n",  __FUNCTION__, strerror(error),
-					error);
+		snprintf(pcWriteBuffer, xWriteBufferLen, "%s: ff_rename error: %s, (%d)\n", __FUNCTION__, strerror(error), error);
     } else {
 		snprintf( pcWriteBuffer, xWriteBufferLen, "Rename succeeded" );
 	}
@@ -632,8 +537,7 @@ BaseType_t xParameterStringLength;
 }
 /*-----------------------------------------------------------*/
 
-static BaseType_t prvPWDCommand( char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString )
-{
+static BaseType_t prvPWDCommand(char *pcWriteBuffer, size_t xWriteBufferLen, const char *pcCommandString) {
 	( void ) pcCommandString;
 
 	/* Copy the current working directory into the output buffer. */
@@ -642,12 +546,8 @@ static BaseType_t prvPWDCommand( char *pcWriteBuffer, size_t xWriteBufferLen, co
 }
 /*-----------------------------------------------------------*/
 
-static BaseType_t prvPerformCopy( const char *pcSourceFile,
-									size_t lSourceFileLength,
-									const char *pcDestinationFile,
-									char *pxWriteBuffer,
-									size_t xWriteBufferLen )
-{
+static BaseType_t prvPerformCopy(const char *pcSourceFile, size_t lSourceFileLength, const char *pcDestinationFile,
+		char *pxWriteBuffer, size_t xWriteBufferLen) {
 size_t lBytesRead = 0, lBytesToRead, lBytesRemaining;
 FF_FILE *pxSourceFile, *pxDestinationFile;
 BaseType_t xReturn = pdPASS;
@@ -657,21 +557,16 @@ BaseType_t xReturn = pdPASS;
 	pxSourceFile = ff_fopen( pcSourceFile, "r" );
 	pxDestinationFile = ff_fopen( pcDestinationFile, "a" );
 
-	if( ( pxSourceFile != NULL ) && ( pxDestinationFile != NULL ) )
-	{
-		while( lBytesRead < lSourceFileLength )
-		{
+	if ((pxSourceFile != NULL) && (pxDestinationFile != NULL)) {
+		while (lBytesRead < lSourceFileLength) {
 			/* How many bytes are left? */
 			lBytesRemaining = lSourceFileLength - lBytesRead;
 
 			/* How many bytes should be read this time around the loop.  Can't
 			read more bytes than will fit into the buffer. */
-			if( lBytesRemaining > xWriteBufferLen )
-			{
+			if (lBytesRemaining > xWriteBufferLen) {
 				lBytesToRead = xWriteBufferLen;
-			}
-			else
-			{
+			} else {
 				lBytesToRead = lBytesRemaining;
 			}
 
@@ -682,22 +577,17 @@ BaseType_t xReturn = pdPASS;
 		}
 	}
 
-	if( pxSourceFile != NULL )
-	{
+	if (pxSourceFile != NULL) {
 		ff_fclose( pxSourceFile );
 	}
 
-	if( pxSourceFile != NULL )
-	{
+	if (pxSourceFile != NULL) {
 		ff_fclose( pxDestinationFile );
 	}
 
-	if( lBytesRead == lSourceFileLength )
-	{
+	if (lBytesRead == lSourceFileLength) {
 		xReturn = pdPASS;
-	}
-	else
-	{
+	} else {
 		xReturn = pdFAIL;
 	}
 
@@ -705,22 +595,16 @@ BaseType_t xReturn = pdPASS;
 }
 /*-----------------------------------------------------------*/
 
-static void prvCreateFileInfoString( char *pcBuffer, FF_FindData_t *pxFindStruct )
-{
+static void prvCreateFileInfoString(char *pcBuffer, FF_FindData_t *pxFindStruct) {
 const char * pcWritableFile = "writable file", *pcReadOnlyFile = "read only file", *pcDirectory = "directory";
 const char * pcAttrib;
 
 	/* Point pcAttrib to a string that describes the file. */
-	if( ( pxFindStruct->ucAttributes & FF_FAT_ATTR_DIR ) != 0 )
-	{
+	if ((pxFindStruct->ucAttributes & FF_FAT_ATTR_DIR) != 0) {
 		pcAttrib = pcDirectory;
-	}
-	else if( pxFindStruct->ucAttributes & FF_FAT_ATTR_READONLY )
-	{
+	} else if (pxFindStruct->ucAttributes & FF_FAT_ATTR_READONLY) {
 		pcAttrib = pcReadOnlyFile;
-	}
-	else
-	{
+	} else {
 		pcAttrib = pcWritableFile;
 	}
 
@@ -728,6 +612,4 @@ const char * pcAttrib;
 	attributes string. */
 	sprintf( pcBuffer, "%s [%s] [size=%lu]", pxFindStruct->pcFileName, pcAttrib, (unsigned long)pxFindStruct->ulFileSize );
 }
-
-
 

@@ -68,8 +68,6 @@
 /*****************************************************/
 /*              Function prototype                   */
 /*****************************************************/
-static bool ValidateDateTime(uint32_t year, uint32_t month, uint32_t date, \
-            uint32_t sec, uint32_t min, uint32_t hour);
 static inline bool IsLeapYear(uint32_t );
 void synch_time();
 
@@ -88,33 +86,30 @@ RTC_BUSY bit in the BACKUP_STATUS register is set)
 The firmware should verify that the above bits are not set
 before setting the READ bit.
 */    
-static void readRTCUserRegisters(void)
-{    
+static void readRTCUserRegisters(uint32_t *pTime, uint32_t *pDate) {
     while ((CY_RTC_BUSY == Cy_RTC_GetSyncStatus()) || (_FLD2BOOL(BACKUP_RTC_RW_WRITE, BACKUP_RTC_RW)))
         ; // Spin
     /* Setting RTC Read bit */
     BACKUP_RTC_RW = BACKUP_RTC_RW_READ_Msk;
 
+	/* Write the AHB RTC registers date and time into the local variables */
+	*pTime = BACKUP_RTC_TIME;
+	*pDate = BACKUP_RTC_DATE;
+
     /* Clearing RTC Read bit */
     BACKUP_RTC_RW = 0U;
 }
 
-void my_RTC_GetDateAndTime(cy_stc_rtc_config_t* dateTime)
-{
-    uint32_t tmpTime;
-    uint32_t tmpDate;
+void my_RTC_GetDateAndTime(cy_stc_rtc_config_t *dateTime) {
 
     CY_ASSERT_L1(NULL != dateTime);
 
-    /* Read the current RTC time and date to validate the input parameters */
-    readRTCUserRegisters();
+	/* Read the current RTC time and date */
+	uint32_t tmpTime;
+	uint32_t tmpDate;
+	readRTCUserRegisters(&tmpTime, &tmpDate);
 
-    /* Write the AHB RTC registers date and time into the local variables and 
-    * updating the dateTime structure elements
-    */
-    tmpTime = BACKUP_RTC_TIME;
-    tmpDate = BACKUP_RTC_DATE;
-
+	// updating the dateTime structure elements
     dateTime->sec = Cy_RTC_ConvertBcdToDec(_FLD2VAL(BACKUP_RTC_TIME_RTC_SEC, tmpTime));
     dateTime->min = Cy_RTC_ConvertBcdToDec(_FLD2VAL(BACKUP_RTC_TIME_RTC_MIN, tmpTime));
     dateTime->hrFormat = ((_FLD2BOOL(BACKUP_RTC_TIME_CTRL_12HR, tmpTime)) ? CY_RTC_12_HOURS : CY_RTC_24_HOURS);
@@ -125,15 +120,11 @@ void my_RTC_GetDateAndTime(cy_stc_rtc_config_t* dateTime)
     * In the 12-hour mode the hour value is presented in [20:16] bits in the BCD
     * format and bit [21] is present: 0 - AM; 1 - PM. 
     */
-    if (dateTime->hrFormat != CY_RTC_24_HOURS)
-    {
-        dateTime->hour = 
-        Cy_RTC_ConvertBcdToDec((tmpTime & CY_RTC_BACKUP_RTC_TIME_RTC_12HOUR) >> BACKUP_RTC_TIME_RTC_HOUR_Pos);
+	if (dateTime->hrFormat != CY_RTC_24_HOURS) {
+		dateTime->hour = Cy_RTC_ConvertBcdToDec((tmpTime & CY_RTC_BACKUP_RTC_TIME_RTC_12HOUR) >> BACKUP_RTC_TIME_RTC_HOUR_Pos);
 
         dateTime->amPm = ((0U != (tmpTime & CY_RTC_BACKUP_RTC_TIME_RTC_PM)) ? CY_RTC_PM : CY_RTC_AM);
-    }
-    else
-    {
+	} else {
         dateTime->hour = Cy_RTC_ConvertBcdToDec(_FLD2VAL(BACKUP_RTC_TIME_RTC_HOUR, tmpTime));
 
         dateTime->amPm = CY_RTC_AM;
@@ -144,8 +135,6 @@ void my_RTC_GetDateAndTime(cy_stc_rtc_config_t* dateTime)
     dateTime->month = Cy_RTC_ConvertBcdToDec(_FLD2VAL(BACKUP_RTC_DATE_RTC_MON, tmpDate));
     dateTime->year  = Cy_RTC_ConvertBcdToDec(_FLD2VAL(BACKUP_RTC_DATE_RTC_YEAR, tmpDate));
 }
-
-
 
 /*******************************************************************************
 * Function Name: PrintDateTime
@@ -160,8 +149,7 @@ void my_RTC_GetDateAndTime(cy_stc_rtc_config_t* dateTime)
 *  None
 *
 *******************************************************************************/
-void PrintDateTime(void)
-{
+void PrintDateTime(void) {
     /* Variable used to store date and time information */
     cy_stc_rtc_config_t dateTime;
     
@@ -214,16 +202,11 @@ void SetDateTime(
         year = year % 100u;
     }
     
-    if(ValidateDateTime(sec, min, hour, date, month, year))
-    {
+	if (ValidateDateTime(sec, min, hour, date, month, year)) {
         /* Set date and time */
-        if( Cy_RTC_SetDateAndTimeDirect(sec, min, hour, date, 
-            month, year ) != CY_RTC_SUCCESS)
-        {
-            printf("Failed to update date and time\r\n");
-        }
-        else
-        {
+		if (Cy_RTC_SetDateAndTimeDirect(sec, min, hour, date, month, year) != CY_RTC_SUCCESS) {
+			printf("Failed to update date and time\r\n");
+		} else {
             synch_time();
             printf("\r\nDate and Time updated !!\r\n");
             PrintDateTime();
@@ -255,11 +238,10 @@ void SetDateTime(
 *  false - invalid ; true - valid
 *
 *******************************************************************************/
-static bool ValidateDateTime(uint32_t sec, uint32_t min, uint32_t hour, \
-                      uint32_t date, uint32_t month, uint32_t year)
-{
+bool ValidateDateTime(uint32_t sec, uint32_t min, uint32_t hour, uint32_t date, uint32_t month, uint32_t year) {
     /* Variable used to store days in months table */
-    static uint8_t daysInMonthTable[CY_RTC_MONTHS_PER_YEAR] = {CY_RTC_DAYS_IN_JANUARY,
+	static uint8_t daysInMonthTable[CY_RTC_MONTHS_PER_YEAR] =
+	{ CY_RTC_DAYS_IN_JANUARY,
                                                             CY_RTC_DAYS_IN_FEBRUARY,
                                                             CY_RTC_DAYS_IN_MARCH,
                                                             CY_RTC_DAYS_IN_APRIL,
@@ -280,12 +262,10 @@ static bool ValidateDateTime(uint32_t sec, uint32_t min, uint32_t hour, \
     status &= CY_RTC_IS_MONTH_VALID(month);
     status &= CY_RTC_IS_YEAR_SHORT_VALID(year);
     
-    if(status)
-    {
+	if (status) {
         daysInMonth = daysInMonthTable[month - 1];
         
-        if(IsLeapYear(year + CY_RTC_TWO_THOUSAND_YEARS) && (month == CY_RTC_FEBRUARY))
-        {        
+		if (IsLeapYear(year + CY_RTC_TWO_THOUSAND_YEARS) && (month == CY_RTC_FEBRUARY)) {
             daysInMonth++;
         }
         status &= (date > 0U) && (date <= daysInMonth);
@@ -308,11 +288,11 @@ static bool ValidateDateTime(uint32_t sec, uint32_t min, uint32_t hour, \
 *  false - The year is not leap; true - The year is leap.
 *
 *******************************************************************************/
-static inline bool IsLeapYear(uint32_t year)
-{
+static inline bool IsLeapYear(uint32_t year) {
     return(((0U == (year % 4UL)) && (0U != (year % 100UL))) || (0U == (year % 400UL)));
 }
 
+time_t prev_epochtime;
 static time_t offset; // Seconds to add to TimerTick for epoch time
 
 void synch_time() {
@@ -359,21 +339,26 @@ void synch_time() {
     offset = epochtime - (xTicksNow / configTICK_RATE_HZ);
 }
 time_t FreeRTOS_time( time_t *pxTime ) {
-    if (!offset) 
-        synch_time();
     
-    time_t epochtime = (xTaskGetTickCount() / configTICK_RATE_HZ) + offset;     
+    static time_t last_synch_epochtime; 
     
-    if (0 == epochtime % 60*60) // Synch to RTC once an hour
+    time_t epochtime = xTaskGetTickCount() / configTICK_RATE_HZ + offset;    
+	if (!offset
+    || (last_synch_epochtime && epochtime - last_synch_epochtime > 60 * 60) // synch once an hour
+    || (prev_epochtime && epochtime <  prev_epochtime)) // timer wrap    
+    {
         synch_time();
-        
-    if (pxTime)
+        epochtime = xTaskGetTickCount() / configTICK_RATE_HZ + offset;
+        last_synch_epochtime = epochtime;
+    }
+	if (pxTime) {
         *pxTime = epochtime;
-    
+    }
+    prev_epochtime = epochtime;
     return epochtime;    
 }
 
-time_t new_FreeRTOS_time( time_t *pxTime ) { // FIXME
+time_t direct_FreeRTOS_time(time_t *pxTime) { // FIXME
     struct tm timeinfo;
     cy_stc_rtc_config_t dateTime;
             

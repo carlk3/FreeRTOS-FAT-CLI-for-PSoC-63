@@ -22,7 +22,7 @@
 #define cmdMAX_OUTPUT_SIZE	1024
 
 /* DEL acts as a backspace. */
-#define cmdASCII_DEL		( 0x7F )
+static char const  cmdASCII_DEL = 0x7F;
 
 /* Const messages output by the command console. */
 static const char * const pcEndOfOutputMessage = "\n> ";       

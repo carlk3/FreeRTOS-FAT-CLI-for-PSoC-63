@@ -177,7 +177,6 @@ BaseType_t FF_SDDiskUnmount( FF_Disk_t *pDisk ) {
 		FF_PRINTF("FF_Unmount error: %s\n", FF_GetErrMessage(e));
 	} else {
 		pDisk->xStatus.bIsMounted = pdFALSE;
-		Cy_GPIO_Write(BlueLED_PORT, BlueLED_NUM, 1) ;                                
 	}
 	return e;
 }
@@ -193,7 +192,6 @@ BaseType_t FF_SDDiskMount( FF_Disk_t *pDisk ) {
 		FF_PRINTF("FF_Mount error: %s\n", FF_GetErrMessage(e));
 	} else {
 		pDisk->xStatus.bIsMounted = pdTRUE;
-		Cy_GPIO_Write(BlueLED_PORT, BlueLED_NUM, 0) ;                        
 	}
 	return e;    
 }
@@ -218,7 +216,6 @@ BaseType_t FF_SDDiskDelete(FF_Disk_t *pxDisk) {
 			vPortFree( pSD->ff_disks);
 		}
 		pSD->ff_disk_count--;
-		Cy_GPIO_Write(RedLED_PORT, RedLED_NUM, 1) ;                                        
 	}
 	return pdPASS;
 }

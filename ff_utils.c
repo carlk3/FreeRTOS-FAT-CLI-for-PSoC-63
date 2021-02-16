@@ -126,13 +126,11 @@ void eject(const char *const name) {
     			FF_PRINTF("Unmounting %s\n", pSD->pcName);                                     
     			FF_Unmount(pxDisk);
     			pxDisk->xStatus.bIsMounted = pdFALSE;    
-    			Cy_GPIO_Write(BlueLED_PORT, BlueLED_NUM, 1) ;     
     		}       
             FF_SDDiskDelete(pxDisk);
         }
     }
 	sd_deinit(pSD);    
-	Cy_GPIO_Write(RedLED_PORT, RedLED_NUM, 1) ;         
 }
 
 void getFree(FF_Disk_t *pxDisk, uint64_t *pFreeMB, unsigned *pFreePct) {

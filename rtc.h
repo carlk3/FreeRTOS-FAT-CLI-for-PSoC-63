@@ -10,9 +10,11 @@
  * ========================================
 */
 #include <time.h>
+#include <stdbool.h>
 
-extern void PrintDateTime(void);
-extern void SetDateTime(
+void PrintDateTime();
+bool ValidateDateTime(uint32_t sec, uint32_t min, uint32_t hour, uint32_t date, uint32_t month, uint32_t year);
+void SetDateTime(
     const char *const dateStr,
     const char *const monthStr,
     const char *const yearStr,
@@ -20,6 +22,10 @@ extern void SetDateTime(
     const char *const minStr,
     const char *const hourStr
 );
-extern time_t FreeRTOS_time( time_t *pxTime );
+time_t FreeRTOS_time( time_t *pxTime );
+void synch_time();
+
+// For timestamp without function call
+extern time_t prev_epochtime; 
 
 /* [] END OF FILE */

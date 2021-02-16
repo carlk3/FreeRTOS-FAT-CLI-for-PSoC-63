@@ -141,8 +141,16 @@ bool sd_spi_transfer(sd_card_t *this, const uint8_t *tx, uint8_t *rx, size_t len
 	rc = ulTaskNotifyTake(pdTRUE, 0);
 	configASSERT(!rc);
 
+    /*     
+    In PSoC 6 MCU with BLE: CY8C63x6, CY8C63x7 Architecture TRM, Document No. 002-18176 Rev. *H, 
+    section 25.6 SCB Interrupts, it says: 
+    "Note: To avoid being triggered by events from previous transactions, 
+    whenever the firmware enables an interrupt mask register bit, 
+    it should clear the interrupt request register in advance."
+    */    
+    Cy_SCB_SPI_ClearSlaveMasterStatus(this->spi->base, CY_SCB_SPI_MASTER_DONE);    
 	 /* Unmasking only the spi done interrupt bit */
-	this->spi->base->INTR_M_MASK = SCB_INTR_M_SPI_DONE_Msk;        
+	Cy_SCB_SetMasterInterruptMask(this->spi->base, SCB_INTR_M_SPI_DONE_Msk);
 
 	spi_dma_transfer(this->spi, length, tx, rx);    
 
@@ -180,6 +188,12 @@ bool sd_spi_transfer(sd_card_t *this, const uint8_t *tx, uint8_t *rx, size_t len
 	configASSERT(0 == Cy_SCB_SPI_GetNumInRxFifo(this->spi->base));    
 	configASSERT(0 == Cy_SCB_SPI_GetNumInTxFifo(this->spi->base));    
 	
+    Cy_SCB_SPI_ClearRxFifo(this->spi->base);
+    Cy_SCB_SPI_ClearRxFifoStatus(this->spi->base, CY_SCB_SPI_RX_INTR_MASK);    
+
+    // There should be no more notifications pending:
+    configASSERT(!ulTaskNotifyTake(pdTRUE, 0));        
+    
 	sd_spi_release(this);
 	return true;
 }
@@ -202,9 +216,11 @@ uint8_t sd_spi_write(sd_card_t *this, const uint8_t value) {
 	BaseType_t rc = ulTaskNotifyTake(pdTRUE, 0);
 	configASSERT(!rc);    
 	
+    Cy_SCB_SPI_ClearSlaveMasterStatus(this->spi->base, CY_SCB_SPI_MASTER_DONE);    
 	 /* Unmasking only the spi done interrupt bit */
-	this->spi->base->INTR_M_MASK = SCB_INTR_M_SPI_DONE_Msk;    
+	Cy_SCB_SetMasterInterruptMask(this->spi->base, SCB_INTR_M_SPI_DONE_Msk);
 	
+    //  Should never fail. We just verified TX FIFO is empty.
 	uint32_t n = Cy_SCB_SPI_Write(this->spi->base, value);
 	configASSERT(1 == n);
 	

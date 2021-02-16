@@ -335,10 +335,17 @@ int test_diskio (
 int low_level_io_tests(const char *diskName)
 {
     int rc;
-    DWORD buff[FF_MAX_SS];  /* Working buffer (4 sector in size) */
+    // DWORD buff[FF_MAX_SS];  /* Working buffer (4 sector in size) */
+    const size_t buff_sz = FF_MAX_SS * sizeof(DWORD);
+    
+	DWORD* buff = pvPortMalloc(buff_sz);
+	if (!buff) {
+        printf("%s: Couldn't allocate %zu bytes\n", __FUNCTION__, buff_sz);
+		return -1;
+	}
 
     /* Check function/compatibility of the physical drive #0 */
-    rc = test_diskio(diskName, 3, buff, sizeof buff);
+    rc = test_diskio(diskName, 3, buff, buff_sz);
 
     if (rc) {
         printf("Sorry the function/compatibility test failed. (rc=%d)\nFatFs will not work with this disk driver.\n", rc);

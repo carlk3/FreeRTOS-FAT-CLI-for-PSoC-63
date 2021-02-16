@@ -18,13 +18,16 @@
 #include "FreeRTOSFATConfig.h" // for DBG_PRINTF
 
 void spi_ISR(spi_t *this) {
-	/* Mask the spi done interrupt bit */
-	this->base->INTR_M_MASK &= ~SCB_INTR_M_SPI_DONE_Msk;
+	/* Check the status of master */    
+    if (CY_SCB_MASTER_INTR & Cy_SCB_GetInterruptCause(this->base) 
+    && CY_SCB_SPI_MASTER_DONE == Cy_SCB_SPI_GetSlaveMasterStatus(this->base)) {
 
-	/* Check the status of master */
-	uint32_t masterStatus = Cy_SCB_SPI_GetSlaveMasterStatus(this->base);
-	Cy_SCB_SPI_ClearSlaveMasterStatus(this->base, masterStatus);    
-	configASSERT(masterStatus == CY_SCB_SPI_MASTER_DONE);
+        Cy_SCB_SPI_ClearSlaveMasterStatus(this->base, CY_SCB_SPI_MASTER_DONE);    
+        
+	/* Mask the spi done interrupt bit */
+    	//this->base->INTR_M_MASK &= ~SCB_INTR_M_SPI_DONE_Msk;
+        //Cy_SCB_SetMasterInterruptMask(this->base, ~SCB_INTR_M_SPI_DONE_Msk & Cy_SCB_GetMasterInterruptMask(this->base));
+        Cy_SCB_SetMasterInterruptMask(this->base, 0);
 	
 	/* The xHigherPriorityTaskWoken parameter must be initialized to pdFALSE as
 	 it will get set to pdTRUE inside the interrupt safe API function if a
@@ -44,6 +47,7 @@ void spi_ISR(spi_t *this) {
 	 xHigherPriorityTaskWoken is still pdFALSE then calling
 	 portYIELD_FROM_ISR() will have no effect. */
 	portYIELD_FROM_ISR(xHigherPriorityTaskWoken);    
+}
 }
 
 /*******************************************************************************
@@ -242,6 +246,9 @@ bool spi_init(spi_t *this) {
 
 //	/* Enable SPI master hardware. */
 	Cy_SCB_SPI_Enable(this->base);
+
+    Cy_SCB_SPI_ClearSlaveMasterStatus(this->base, CY_SCB_SPI_MASTER_DONE);        
+    Cy_SCB_SetMasterInterruptMask(this->base, 0);    
 
 	// The SPI may be shared (using multiple SSs); protect it
 	this->mutex = xSemaphoreCreateRecursiveMutex();

@@ -168,8 +168,8 @@
 //DEBUG:
 #define LED_ON 0
 #define LED_OFF 1
-#define SIGNAL_MOUNTED(x) Cy_GPIO_Write(BlueLED_PORT, BlueLED_NUM, x); 
-#define SIGNAL_PRESENT(x) Cy_GPIO_Write(RedLED_PORT, RedLED_NUM, x) ;
+#define SIGNAL_MOUNTED(x)
+#define SIGNAL_PRESENT(x)
 
 /* Control Tokens   */
 #define SPI_DATA_RESPONSE_MASK   (0x1F)
@@ -327,19 +327,20 @@ static bool sd_wait_ready(sd_card_t *this, int timeout) {
 	} while (resp == 0x00
 			&& (xTaskGetTickCount() - xStart) < pdMS_TO_TICKS(timeout));
 
-	configASSERT(resp > 0x00);
+	if (resp == 0x00)
+        DBG_PRINTF("%s failed\n", __FUNCTION__);
 
 	//Return success/failure
 	return (resp > 0x00);
 }
 
 static void sd_select(sd_card_t *this) {
-	sd_spi_write(this, 0xFF);
 	sd_spi_acquire(this);
+	sd_spi_write(this, 0xFF);
 }
 static void sd_deselect(sd_card_t *this) {
-	sd_spi_release(this);
 	sd_spi_write(this, 0xFF);
+	sd_spi_release(this);
 }
 
 #define SD_COMMAND_TIMEOUT 5000   /*!< Timeout in ms for response */
@@ -474,7 +475,7 @@ bool sd_card_detect(sd_card_t *this) {
 }
 
 #define SPI_FILL_CHAR         (0xFF)
-#define SD_CMD0_GO_IDLE_STATE_RETRIES     5      /*!< Number of retries for sending CMDO */
+#define SD_CMD0_GO_IDLE_STATE_RETRIES     10      /*!< Number of retries for sending CMDO */
 
 static uint32_t sd_go_idle_state(sd_card_t *this) {
 	uint32_t response;
@@ -489,7 +490,7 @@ static uint32_t sd_go_idle_state(sd_card_t *this) {
 		if (R1_IDLE_STATE == response) {
 			break;
 		}
-		vTaskDelay(1);
+		vTaskDelay(100);
 	}
 	return response;
 }
@@ -592,8 +593,7 @@ static int sd_initialise_card(sd_card_t *this) {
 				this->card_type = SDCARD_V2HC;
 				DBG_PRINTF("Card Initialized: High Capacity Card\n");
 			} else {
-				DBG_PRINTF("%s",
-						"Card Initialized: Standard Capacity Card: Version 2.x\n");
+				DBG_PRINTF("Card Initialized: Standard Capacity Card: Version 2.x\n");
 			}
 		}
 	} else {

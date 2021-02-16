@@ -98,7 +98,7 @@ static sd_card_t sd_cards[] = { 	// One for each SD card
 		.ss = SPI_1_SPI_SLAVE_SELECT0, // The SPI slave select line for this SD card
 		.card_detect_gpio_port = Card_Detect_PORT, // Card detect
 		.card_detect_gpio_num = Card_Detect_NUM, // Card detect
-		.card_detected_true = 0, // truth (card is present) is 0         
+		.card_detected_true = 1, // truth (card is present) is 0         
 		.card_detect_int_cfg = &Card_Detect_Interrupt_cfg,
 		.card_detect_ISR = SDCard_detect_ISR,
 		// Following attributes are dynamically assigned

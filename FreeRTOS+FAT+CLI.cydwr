@@ -718,7 +718,7 @@
     </Group>
     <Group key="4b7c5080-6c79-467d-9e7a-0d4bc4c1f6ac">
       <Group key="0">
-        <Data key="Port Format" value="12,5" />
+        <Data key="Port Format" value="12,7" />
       </Group>
     </Group>
     <Group key="4cca878b-77b5-471d-8aeb-ad6925202455">
@@ -728,22 +728,22 @@
     </Group>
     <Group key="851d1dda-6d13-4230-b006-f54035c660fb/6ab54762-7779-4044-8f78-8f0c3cc17648">
       <Group key="0">
-        <Data key="Port Format" value="12,0" />
+        <Data key="Port Format" value="9,0" />
       </Group>
     </Group>
     <Group key="851d1dda-6d13-4230-b006-f54035c660fb/36be6e88-4a0d-41df-a2e0-06e872a3b6e7">
       <Group key="0">
-        <Data key="Port Format" value="12,3" />
+        <Data key="Port Format" value="9,4" />
       </Group>
     </Group>
     <Group key="851d1dda-6d13-4230-b006-f54035c660fb/626488ba-448e-4b1b-8f21-ab800fa641d3">
       <Group key="0">
-        <Data key="Port Format" value="12,2" />
+        <Data key="Port Format" value="9,2" />
       </Group>
     </Group>
     <Group key="851d1dda-6d13-4230-b006-f54035c660fb/c8948441-ff15-42a0-9e51-75869d2ef747">
       <Group key="0">
-        <Data key="Port Format" value="12,1" />
+        <Data key="Port Format" value="9,1" />
       </Group>
     </Group>
     <Group key="4489fdd9-74eb-453d-addb-44b0b6d87b07">
@@ -806,7 +806,7 @@
     <Data key="CYDEV_CPUSS0_TRACE_DATA2" value="P75" />
     <Data key="CYDEV_CPUSS0_TRACE_DATA3" value="P74" />
     <Data key="CYDEV_DEBUGGING_DPS" value="SWD" />
-    <Data key="CYDEV_PMIC_MODE" value="ENABLED" />
+    <Data key="CYDEV_PMIC_MODE" value="DISABLED" />
     <Data key="CYDEV_POWER_MODE" value="LDO_LINEAR_REG_1_1V" />
     <Data key="CYDEV_SYSTEM_AREF_CURRENT" value="HIGH" />
     <Data key="CYDEV_SYSTEM_AREF_DEEPSLEEP" value="False" />
@@ -814,7 +814,7 @@
     <Data key="CYDEV_TEMPERATURE" value="-40C" />
     <Data key="CYDEV_TRACE_ENABLED" value="False" />
     <Data key="CYDEV_VARIABLE_VDDA" value="False" />
-    <Data key="CYDEV_VBAC_SUPPLY" value="DEDICATED" />
+    <Data key="CYDEV_VBAC_SUPPLY" value="VDDD" />
     <Data key="CYDEV_VBACKUP" value="3.3" />
     <Data key="CYDEV_VDD_NS" value="3.3" />
     <Data key="CYDEV_VDDA" value="3.3" />
